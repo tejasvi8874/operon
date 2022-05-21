@@ -78,3 +78,7 @@
 .css-18e3th9 {
     padding: 0rem 1rem 10rem;
 }
+
+header.[data-testid='stHeader'] {
+	display: none;
+}
