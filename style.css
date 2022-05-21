@@ -74,3 +74,7 @@
  .streamlit-expanderContent:nth-child(2) [data-testid='stVerticalBlock']>.element-container:nth-child(2) [data-baseweb="slider"]>div:nth-child(1) {
    background-image: linear-gradient(to right, red, yellow, green);
  }
+
+.css-18e3th9 {
+    padding: 0rem 1rem 10rem;
+}
