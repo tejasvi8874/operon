@@ -1,4 +1,5 @@
 from collections import namedtuple
+import re
 from time import sleep
 from os import makedirs, mkdir
 from pathlib import Path
@@ -8,9 +9,8 @@ from glob import glob
 from functools import lru_cache
 from subprocess import run, check_output
 from json import dump, dumps, load, loads
-from typing import Iterable, Optional
 from time import time
-from pid import PidFile, PidFileError
+from pid import PidFile
 
 from attr import dataclass
 
@@ -41,6 +41,7 @@ LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 @lru_cache(128)
 def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, LocInfo]]:
+    genome_organism_id = genome_id.split('.')[0]
     genome_data = get_genome_data(genome_id)
     feature_data = genome_data["docs"]
 
@@ -48,12 +49,15 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, 
     full_data = {}
     assert feature_data
     for feature in feature_data:
+        refseq = feature.get("refseq_locus_tag") or symbol_refseq_map(genome_organism_id).get(feature.get("gene"))
+        if not refseq: # Some genes have neither refseq nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
+            continue
+
         desc: str = feature["product"]
         desc_col_loc = desc.find(': ')
         if desc_col_loc != -1:
             desc = desc[desc_col_loc + 2:]
 
-        refseq = feature.get("refseq_locus_tag", "None")
         protein_id = feature.get("protein_id", "None")
         patric_id = int(feature["patric_id"].split(".")[-1])
         full_data[patric_id] = PatricMeta(
@@ -137,5 +141,13 @@ def get_genome_data(genome_id: str):
     return genome_data
 
 @lru_cache(32)
-def stringdb_aliases(genome_organism_id):
-    return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz"))
+def stringdb_aliases(genome_organism_id) -> str:
+    return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+
+def refseq_symbol_pairs(genome_organism_id: str) -> tuple[str,str]:
+    for match in re.finditer(r".(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)", stringdb_aliases(genome_organism_id)):
+        yield match.groups()
+        
+@lru_cache(1)
+def symbol_refseq_map(genome_organism_id: str) -> dict[str, str]:
+    return {symbol: refseq for refseq, symbol in refseq_symbol_pairs(genome_organism_id)}

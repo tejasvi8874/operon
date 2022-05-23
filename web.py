@@ -10,7 +10,7 @@
 
 from gzip import decompress
 from io import TextIOWrapper
-from helpers import Wait, stringdb_aliases
+from helpers import Wait, refseq_symbol_pairs, stringdb_aliases
 import numpy as np
 from json import dumps, loads
 from os import environ
@@ -180,8 +180,8 @@ if genome_id_option == search:
                     organism_name = st.selectbox("Choose organism", organisms)
                     
                 genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.g", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
-                a_refeseq, a_gene_symbol = [v.decode() for v in next(re.finditer(rb".(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)", stringdb_aliases(genome_organism_id))).groups()]
-                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{refseq}%22),keyword(%22{a_gene_symbol}%22)))&limit(1)'))
+                a_refseq, a_gene_symbol = next(refseq_symbol_pairs(genome_organism_id))
+                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_refseq}%22),keyword(%22{a_gene_symbol}%22)))&limit(1)'))
                 if features:
                     genome_id = features[0]['genome_id']
                 else:
@@ -191,7 +191,7 @@ else:
         "Genome ID",
         "262316.17",
         help="Must be available in PATRIC and STRING databases.",
-    ).strip()  # 83332.12")  # 111')
+    ).strip()
     if re.match(r"\d+\.\d+", genome_id):
         try:
             for url in (

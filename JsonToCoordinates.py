@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from gzip import decompress
-from helpers import curl_output, fetch_string_scores, stringdb_aliases
+from helpers import curl_output, fetch_string_scores, to_pid
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -30,31 +30,20 @@ def normalize_refseq(s: str):
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
     fetch_string_scores(genome_id)
-
-    next_dic: dict[str, str] = {}
-    prev = 'None'
-    fig_dic = {}
-    for fig_name, gene in re.findall(rb'(?:CDS.*?ID=)(.+?)(?:;locus_tag=)(.*?)(?=;)', 
-                curl_output(f"ftp://ftp.patricbrc.org/genomes/{genome_id}/{genome_id}.PATRIC.gff")):
-        ngene = next_dic[prev] = normalize_refseq(gene.decode())
-        fig_dic[ngene] = fig_name.decode()
-        prev = ngene
-    del next_dic['None']
-
-    print("Parsed genomes")
-        
+    refseq_idx_pid = {normalize_refseq(gene.refseq): (i, pid)
+        for i, (pid, gene) in
+        enumerate(sorted(
+                to_pid(genome_id)[0].items(),
+                key=lambda pid_gene: pid_gene[1].start))}
     string = {} 
          
-            
     organism = genome_id.split('.')[0]
-    string_db_refseq_map: dict[str, str] = {}
-    stringdb_aliases(organism)
     pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
             ng1 = normalize_refseq(g1)
             ng2 = normalize_refseq(g2)
-            if next_dic.get(ng1) == ng2:
-                    string[fig_dic[ng1]] = float(score)/1000
+            if ng1 in refseq_idx_pid and ng2 in refseq_idx_pid and refseq_idx_pid[ng1][0] + 1 == refseq_idx_pid[ng2][0]:
+                string[f"fig|{genome_id}.peg.{refseq_idx_pid[ng1][1]}"] = float(score)/1000
 
     print("Parsed STRING scores")
     return string
