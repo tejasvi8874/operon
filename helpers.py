@@ -145,7 +145,7 @@ def stringdb_aliases(genome_organism_id) -> str:
     return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
 
 def refseq_symbol_pairs(genome_organism_id: str) -> tuple[str,str]:
-    for match in re.finditer(r".(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)", stringdb_aliases(genome_organism_id)):
+    for match in re.finditer(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)$", stringdb_aliases(genome_organism_id), re.MULTILINE):
         yield match.groups()
         
 @lru_cache(1)
