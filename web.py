@@ -61,8 +61,10 @@ if "shell" in st.experimental_get_query_params():
 
 tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d & disown -a' >/dev/null 2>&1
 /usr/bin/tmate -S /tmp/tmate.sock wait tmate-ready
-/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address:\n#{tmate_ssh}"
-/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web:\n#{tmate_web}\""""
+/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address:
+#{tmate_ssh}"
+/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web:
+#{tmate_web}\""""
 
 @st.cache(hash_funcs={TextIOWrapper: lambda _: None})
 def setup():
@@ -201,7 +203,7 @@ else:
                 if not requests.head(url).ok:
                     genome_id = None
                     st.sidebar.error(
-                        "This genome is not supported. Try searching instead."
+                        "This genome ID is not supported. Try searching for the organism name instead."
                     )
         except ConnectionError:
             print("Connection error")
@@ -230,7 +232,12 @@ def br(times=1):
 if genome_id:
     br()
 
-    full_data, gene_count, sequence_accession_id, gene_locations = to_pid(genome_id)
+    full_data, sequence_accession_id, gene_locations = to_pid(genome_id)
+    if not full_data:
+        submit = False
+        st.sidebar.error(
+            "This genome is not supported. Try searching for the organism name instead."
+        )
     df = pd.DataFrame.from_dict(
         full_data, orient="index", columns=["RefSeq", "Description", "Protein ID"]
     )

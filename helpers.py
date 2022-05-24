@@ -40,7 +40,7 @@ PatricMeta = namedtuple('PatricMeta', ['refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 @lru_cache(128)
-def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, LocInfo]]:
+def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocInfo]]:
     genome_organism_id = genome_id.split('.')[0]
     genome_data = get_genome_data(genome_id)
     feature_data = genome_data["docs"]
@@ -70,7 +70,7 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, 
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
     gene_count: int = genome_data["numFound"]
-    return full_data, gene_count, sequence_accession_id, gene_locations
+    return full_data, sequence_accession_id, gene_locations
 
 def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}
@@ -100,10 +100,11 @@ def get_genome_data(genome_id: str):
                 f"rql=eq%28genome_id%252C{genome_id}%29%2526and%28eq%28feature_type%252C%252522CDS%252522%29%252Ceq%28annotation%252C%252522PATRIC%252522%29%29%2526sort%28%252Bfeature_id%29%2526limit%2825000%29",
                 "--compressed",
         ))["response"]
-        makedirs(genome_data_dir, exist_ok=True)
-        with open(genome_data_path, 'w') as f:
-            dump(genome_data, f)
-        data.updated()
+        if genome_data["docs"]:
+            makedirs(genome_data_dir, exist_ok=True)
+            with open(genome_data_path, 'w') as f:
+                dump(genome_data, f)
+            data.updated()
     return genome_data
 
 @lru_cache(32)
