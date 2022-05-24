@@ -97,7 +97,7 @@ def operon_clusters(genome_id: str, pegs: frozenset[int], min_prob: float, probs
         peg_next[prev] = peg
         prev = peg
     peg_nums = sorted(
-        [[peg_num, peg_next[peg_num]] for peg_num, prob in probs.items() if prob >= min_prob]
+        [[peg_num, peg_next[peg_num]] for peg_num, prob in probs.items() if peg_num in peg_next and prob >= min_prob]
     )
     # pair = [op, op[:op.rfind('.')+1] + str(peg_num + 1)]
 
