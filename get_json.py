@@ -75,7 +75,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     with Wait('.main_predictor_lock'):
         return main(genome_id, progress_bar)
 
-@lru_cache(128)
+# @lru_cache(128)
 def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
     makedirs(f'.json_files/{genome_id}', exist_ok=True)
     predict_json = Path(f'.json_files/{genome_id}/operons.json')

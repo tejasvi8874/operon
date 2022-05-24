@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from gzip import decompress
-from helpers import curl_output, fetch_string_scores, to_pid
+from helpers import curl_output, to_pid
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -29,7 +29,6 @@ def normalize_refseq(s: str):
 
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
-    fetch_string_scores(genome_id)
     pid_data = to_pid(genome_id)
     full_data = pid_data[0]
     locations = pid_data[3]
