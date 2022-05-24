@@ -61,8 +61,8 @@ if "shell" in st.experimental_get_query_params():
 
 tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d & disown -a' >/dev/null 2>&1
 /usr/bin/tmate -S /tmp/tmate.sock wait tmate-ready
-/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address: #{tmate_ssh}"
-/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web: #{tmate_web}\""""
+/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address:\n#{tmate_ssh}"
+/usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web:\n#{tmate_web}\""""
 
 @st.cache(hash_funcs={TextIOWrapper: lambda _: None})
 def setup():
@@ -179,7 +179,7 @@ if genome_id_option == search:
                     st.write("---")
                     organism_name = st.selectbox("Choose organism", organisms)
                     
-                genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.g", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
+                genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
                 a_refseq, a_gene_symbol = next(refseq_symbol_pairs(genome_organism_id))
                 features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_refseq}%22),keyword(%22{a_gene_symbol}%22)))&limit(1)'))
                 if features:
