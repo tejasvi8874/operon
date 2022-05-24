@@ -30,11 +30,15 @@ def normalize_refseq(s: str):
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
     fetch_string_scores(genome_id)
+    pid_data = to_pid(genome_id)
+    full_data = pid_data[0]
+    locations = pid_data[3]
+
     refseq_idx_pid = {normalize_refseq(gene.refseq): (i, pid)
         for i, (pid, gene) in
         enumerate(sorted(
-                to_pid(genome_id)[0].items(),
-                key=lambda pid_gene: pid_gene[1].start))}
+                full_data.items(),
+                key=lambda pid_gene: locations[pid_gene[0]]))}
     string = {} 
          
     organism = genome_id.split('.')[0]
