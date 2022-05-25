@@ -24,11 +24,11 @@ random.shuffle(colors)
 
 def get_prefix_counter(string):
         digits = []
-        for i, c in enumerate(reversed(string)):
+        for c in reversed(string):
                 if not c.isdigit():
                         break
                 digits.append(c)
-        return string[:-i], int(''.join(reversed(digits)))
+        return string[:-len(digits)], int(''.join(reversed(digits)))
 
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:

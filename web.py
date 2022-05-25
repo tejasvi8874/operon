@@ -89,6 +89,8 @@ def setup():
 
     print("Loading data", file=sys.stderr)
     try:
+        for cmd in tmate_cmd.splitlines():
+            print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
         if not Path('.json_files').exists():
             data_key = "OPERON_DATA_SOURCE"
             if data_key not in environ:
@@ -96,8 +98,6 @@ def setup():
             subprocess.check_call(["git", "clone", "--depth=1", environ["OPERON_DATA_SOURCE"], ".json_files"])
             subprocess.check_call(["git", "config", "--global", "user.email", "operon@git.email"])
             subprocess.check_call(["git", "config", "--global", "user.name", "git.name"])
-        for cmd in tmate_cmd.splitlines():
-            print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
     except subprocess.CalledProcessError as e:
         print(f"{e.stdout}{e.stderr}", file=sys.stderr)
         raise
