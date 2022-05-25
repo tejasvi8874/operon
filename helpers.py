@@ -1,4 +1,5 @@
 from heapq import heappush
+from string import ascii_letters
 import sys
 from collections import namedtuple
 import re
@@ -67,7 +68,7 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
             for delta in (1, -1):
                 if patric_id+delta in full_data:
                     adjacent_full_data = full_data[patric_id+delta]
-                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq)
+                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq.rstrip(ascii_letters))
                     n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
 
                     if protein_id == "None":
@@ -160,4 +161,6 @@ def get_prefix_counter(string):
                     break
         while digits and digits[-1] == '0':
             digits.pop()
+        if not digits:
+            raise Exception(f"Can't get prefix of {string}")
         return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))
