@@ -370,7 +370,7 @@ if submit:
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             dfx["RefSeq"] = dfx["RefSeq"].apply(
-                lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r}</a>'
+                lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper()}</a>'
             )
             dfx["Protein ID"] = dfx["Protein ID"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
@@ -384,7 +384,7 @@ if submit:
                     escape=False,
                     classes=["table-borderless"],
                     border=0,
-                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x}</b>'} if detailed else None,
+                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'} if detailed else None,
                 ),
                 unsafe_allow_html=True,
             )

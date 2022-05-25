@@ -1,3 +1,5 @@
+from heapq import heappush
+import sys
 from collections import namedtuple
 import re
 from time import sleep
@@ -36,7 +38,7 @@ Wait = PidFile
 def curl_output(*args: str)->bytes:
     return check_output(('curl', '--compressed') + args)
 
-PatricMeta = namedtuple('PatricMeta', ['desc', 'n_refseq', 'protein_id'])
+PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 @lru_cache(128)
@@ -48,21 +50,42 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
     gene_locations = {}
     full_data = {}
     assert feature_data
-    for feature in feature_data:
+    remaining = []
+    i = 0
+    max_i = 2*len(feature_data)
+    while i < len(feature_data) and i < max_i:
+        feature = feature_data[i]
+        i += 1
+
+        patric_id = int(feature["patric_id"].split(".")[-1])
         refseq = feature.get("refseq_locus_tag") or feature.get("gene")
-        if not refseq: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
-            continue
-        n_refseq = normalize_refseq(refseq)
+        protein_id = feature.get("protein_id", "None")
+
+        if refseq: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
+            n_refseq = normalize_refseq(refseq)
+        else:
+            for delta in (1, -1):
+                if patric_id+delta in full_data:
+                    adjacent_full_data = full_data[patric_id+delta]
+                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq)
+                    n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
+
+                    if protein_id == "None":
+                        if adjacent_full_data.protein_id[0].isdigit():
+                            protein_prefix, adjacent_protein_counter = get_prefix_counter(adjacent_full_data.protein_id)
+                            protein_id = protein_prefix + str(adjacent_protein_counter - delta)
+                    break
+            else:
+                feature_data.append(feature)
+                continue
 
         desc: str = feature["product"]
         desc_col_loc = desc.find(': ')
         if desc_col_loc != -1:
             desc = desc[desc_col_loc + 2:]
 
-        protein_id = feature.get("protein_id", "None")
-        patric_id = int(feature["patric_id"].split(".")[-1])
         full_data[patric_id] = PatricMeta(
-            desc=desc, n_refseq=n_refseq, protein_id=protein_id
+            n_refseq=n_refseq, desc=desc, protein_id=protein_id
         )
         
         gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
@@ -113,12 +136,28 @@ def stringdb_aliases(genome_organism_id) -> str:
     return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
-    for match in re.finditer(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)$", stringdb_aliases(genome_organism_id), re.MULTILINE):
-        string_id, refseq = match.groups()
-        n_refseq = normalize_refseq(refseq)
+    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
+        string_id, refseq1, refseq2 = match.groups()
+        n_refseq = normalize_refseq(refseq1 or refseq2)
         yield string_id, n_refseq
 
 def normalize_refseq(s: str):
         # patric genome removes '_' from 'MAP_0001'
         # Still a valid refseq after normalization https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
         return s.lower().replace('_', '')
+
+
+def get_prefix_counter(string):
+        digits = []
+        dot_seen = False
+        for c in reversed(string):
+                if c.isdigit():
+                    digits.append(c)
+                elif c == '.' and not dot_seen:
+                    digits.append(c)
+                    dot_seen = True
+                else:
+                    break
+        while digits and digits[-1] == '0':
+            digits.pop()
+        return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))

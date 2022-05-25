@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from gzip import decompress
-from helpers import curl_output, normalize_refseq, string_id_n_refseq_pairs, to_pid
+from helpers import curl_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -22,14 +22,6 @@ colors = ["vlred", "vlblue", "lyellow", "orange", "gold", "lgrey", "lbrown", "pu
 random.seed(7)
 random.shuffle(colors)
 
-def get_prefix_counter(string):
-        digits = []
-        for c in reversed(string):
-                if not c.isdigit():
-                        break
-                digits.append(c)
-        return string[:-len(digits)], int(''.join(reversed(digits)))
-
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
     full_data, _, locations = to_pid(genome_id)
@@ -43,6 +35,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
          
     organism = genome_id.split('.')[0]
     pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
+
     string_id_n_refseq_map = dict(string_id_n_refseq_pairs(organism))
     def get_refseq(string_id):
         # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
@@ -55,7 +48,8 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
                         test_refseq = string_id_n_refseq_map[test_string_id]
                         r_prefix, r_counter = get_prefix_counter(test_refseq)
                         return r_prefix + str(r_counter - delta)
-        raise Exception(f"No refseq equivalent (BLAST_.*) found for {string_id=} for {genome_id=}")
+        # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
+        return normalize_refseq(string_id)
 
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
             r1 = get_refseq(g1)
