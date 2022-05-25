@@ -1,16 +1,19 @@
+from heapq import heappush
+from string import ascii_letters
+import sys
 from collections import namedtuple
+import re
 from time import sleep
 from os import makedirs, mkdir
 from pathlib import Path
 from gzip import decompress
 from urllib.request import urlretrieve
 from glob import glob
-from functools import cache
+from functools import lru_cache
 from subprocess import run, check_output
 from json import dump, dumps, load, loads
-from typing import Iterable, Optional
 from time import time
-from pid import PidFile, PidFileError
+from pid import PidFile
 
 from attr import dataclass
 
@@ -32,32 +35,58 @@ Wait = PidFile
 #     def __exit__(self):
 #         self.pid_file.__exit__()
 
-@cache
+@lru_cache(128)
 def curl_output(*args: str)->bytes:
     return check_output(('curl', '--compressed') + args)
 
-PatricMeta = namedtuple('PatricMeta', ['refseq', 'desc', 'protein_id'])
+PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
-@cache
-def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, LocInfo]]:
+@lru_cache(128)
+def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocInfo]]:
+    genome_organism_id = genome_id.split('.')[0]
     genome_data = get_genome_data(genome_id)
     feature_data = genome_data["docs"]
 
     gene_locations = {}
     full_data = {}
     assert feature_data
-    for feature in feature_data:
+    remaining = []
+    i = 0
+    max_i = 2*len(feature_data)
+    while i < len(feature_data) and i < max_i:
+        feature = feature_data[i]
+        i += 1
+
+        patric_id = int(feature["patric_id"].split(".")[-1])
+        refseq = feature.get("refseq_locus_tag") or feature.get("gene")
+        protein_id = feature.get("protein_id", "None")
+
+        if refseq: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
+            n_refseq = normalize_refseq(refseq)
+        else:
+            for delta in (1, -1):
+                if patric_id+delta in full_data:
+                    adjacent_full_data = full_data[patric_id+delta]
+                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq.rstrip(ascii_letters))
+                    n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
+
+                    if protein_id == "None":
+                        if adjacent_full_data.protein_id[0].isdigit():
+                            protein_prefix, adjacent_protein_counter = get_prefix_counter(adjacent_full_data.protein_id)
+                            protein_id = protein_prefix + str(adjacent_protein_counter - delta)
+                    break
+            else:
+                feature_data.append(feature)
+                continue
+
         desc: str = feature["product"]
         desc_col_loc = desc.find(': ')
         if desc_col_loc != -1:
             desc = desc[desc_col_loc + 2:]
 
-        refseq = feature.get("refseq_locus_tag", "None")
-        protein_id = feature.get("protein_id", "None")
-        patric_id = int(feature["patric_id"].split(".")[-1])
         full_data[patric_id] = PatricMeta(
-            desc=desc, refseq=refseq, protein_id=protein_id
+            n_refseq=n_refseq, desc=desc, protein_id=protein_id
         )
         
         gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
@@ -66,45 +95,11 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], int, str, dict[str, 
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
     gene_count: int = genome_data["numFound"]
-    return full_data, gene_count, sequence_accession_id, gene_locations
+    return full_data, sequence_accession_id, gene_locations
 
 def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}
 
-def fetch_string_scores(genome_id: str) -> None:
-    genome_data_changed = False
-
-    genome_file_path = Path("genomes/" + genome_id + ".PATRIC.gff")
-    if not genome_file_path.exists():
-        run(
-            [
-                "wget",
-                f"ftp://ftp.patricbrc.org/genomes/{genome_id}/{genome_id}.PATRIC.gff",
-                "-O",
-                genome_file_path,
-            ]
-        )
-
-    organism = genome_id.split(".")[0]
-
-    if not glob("strings/" + organism + ".protein.links.v11.*.txt"):
-        raw_path = f"{organism}.protein.links.v11.5.txt.gz"
-        urlretrieve(
-            f"https://stringdb-static.org/download/protein.links.v11.5/{raw_path}",
-            raw_path,
-        )
-        path = Path(raw_path)
-
-        target_file_path = path.parent.joinpath("strings").joinpath(
-            path.name.removesuffix(".gz")
-        )
-        with open(path, "rb") as compressed_file, open(
-            target_file_path, "w", encoding="utf8"
-        ) as decompressed_file:
-            decom_str = decompress(compressed_file.read()).decode("utf-8")
-            decompressed_file.write(decom_str)
-
-        path.unlink()
 
 class _Data:
     def __init__(self):
@@ -115,7 +110,7 @@ class _Data:
         self.changed = changed
 data = _Data()
 
-@cache
+@lru_cache(100)
 def get_genome_data(genome_id: str):
     genome_data_dir = f'.json_files/{genome_id}'
     genome_data_path = Path(f'{genome_data_dir}/genome.json')
@@ -130,8 +125,42 @@ def get_genome_data(genome_id: str):
                 f"rql=eq%28genome_id%252C{genome_id}%29%2526and%28eq%28feature_type%252C%252522CDS%252522%29%252Ceq%28annotation%252C%252522PATRIC%252522%29%29%2526sort%28%252Bfeature_id%29%2526limit%2825000%29",
                 "--compressed",
         ))["response"]
-        makedirs(genome_data_dir, exist_ok=True)
-        with open(genome_data_path, 'w') as f:
-            dump(genome_data, f)
-        data.updated()
+        if genome_data["docs"]:
+            makedirs(genome_data_dir, exist_ok=True)
+            with open(genome_data_path, 'w') as f:
+                dump(genome_data, f)
+            data.updated()
     return genome_data
+
+@lru_cache(32)
+def stringdb_aliases(genome_organism_id) -> str:
+    return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+
+def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
+    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
+        string_id, refseq1, refseq2 = match.groups()
+        n_refseq = normalize_refseq(refseq1 or refseq2)
+        yield string_id, n_refseq
+
+def normalize_refseq(s: str):
+        # patric genome removes '_' from 'MAP_0001'
+        # Still a valid refseq after normalization https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
+        return s.lower().replace('_', '')
+
+
+def get_prefix_counter(string):
+        digits = []
+        dot_seen = False
+        for c in reversed(string):
+                if c.isdigit():
+                    digits.append(c)
+                elif c == '.' and not dot_seen:
+                    digits.append(c)
+                    dot_seen = True
+                else:
+                    break
+        while digits and digits[-1] == '0':
+            digits.pop()
+        if not digits:
+            raise Exception(f"Can't get prefix of {string}")
+        return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))

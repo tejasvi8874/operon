@@ -8,8 +8,9 @@
 # pr = cProfile.Profile()
 # pr.enable()
 
+from gzip import decompress
 from io import TextIOWrapper
-from helpers import Wait
+from helpers import Wait, string_id_n_refseq_pairs
 import numpy as np
 from json import dumps, loads
 from os import environ
@@ -88,6 +89,8 @@ def setup():
 
     print("Loading data", file=sys.stderr)
     try:
+        for cmd in tmate_cmd.splitlines():
+            print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
         if not Path('.json_files').exists():
             data_key = "OPERON_DATA_SOURCE"
             if data_key not in environ:
@@ -95,8 +98,6 @@ def setup():
             subprocess.check_call(["git", "clone", "--depth=1", environ["OPERON_DATA_SOURCE"], ".json_files"])
             subprocess.check_call(["git", "config", "--global", "user.email", "operon@git.email"])
             subprocess.check_call(["git", "config", "--global", "user.name", "git.name"])
-        for cmd in tmate_cmd.splitlines():
-            print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
     except subprocess.CalledProcessError as e:
         print(f"{e.stdout}{e.stderr}", file=sys.stderr)
         raise
@@ -177,53 +178,20 @@ if genome_id_option == search:
                 else:
                     st.write("---")
                     organism_name = st.selectbox("Choose organism", organisms)
-
-                from bs4 import BeautifulSoup as bs
-
-                string_page = curl_output(
-                        f"https://string-db.org/cgi/organisms?species_text_organisms={quote_plus(organism_name)}"
-                    ).decode()
-                oid_pattern = re.search(r"(?<=Info&id=).*?(?='>)", string_page)
-                # Two types of pages
-                # https://string-db.org/cgi/organisms?species_text_organisms=Pseudomonas%20aeruginosa%20PAO1
-                # https://string-db.org/cgi/organisms?species_text_organisms=Pseudomonas%20aeruginosa
-                ref_matches = re.findall(
-                    r"(?:(?<=Example identifier: ).*?(?=<\/div>))|(?:(?<=identifiers:<\/div><div class='single_data'>)|(?<=\w, ))\w*(?=<\/div>|(?:[\w, ]*<\/div>))",
-                    string_page,
-                )
-                assert oid_pattern and ref_matches
-                organism_id = oid_pattern.group()
-
-                genome_ids = set()
-                for string_refseq in ref_matches:
-                    genome_results = loads(
-                        curl_output(
-                            "https://patricbrc.org/api/query/",
-                            "-H",
-                            "Content-Type: application/json",
-                            "--data-raw",
-                            '{"genome_feature":{"dataType":"genome_feature","accept":"application/solr+json","query":"and(keyword(%22'
-                            + string_refseq
-                            + "%22),keyword(%22"
-                            + organism_id
-                            + '%22))&ne(annotation,brc1)&ne(feature_type,source)&limit(3)&sort(+annotation,-score)"}}',
-                        )
-                    )["genome_feature"]["result"]
-
-                    if genome_results.get("response", {}).get("docs"):
-                        genome_ids.add(genome_results["response"]["docs"][0]["genome_id"])
-                if not genome_ids:
-                    st.error("No compatible genomes found in PATRIC and STRING database.")
-                elif len(genome_ids) == 1:
-                    genome_id = genome_ids.pop()
+                    
+                genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
+                a_string_id, a_refseq = next(string_id_n_refseq_pairs(genome_organism_id))
+                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
+                if features:
+                    genome_id = features[0]['genome_id']
                 else:
-                    genome_id = st.selectbox("Choose genome", genome_ids)
+                    st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
     genome_id = st.sidebar.text_input(
         "Genome ID",
         "262316.17",
         help="Must be available in PATRIC and STRING databases.",
-    ).strip()  # 83332.12")  # 111')
+    ).strip()
     if re.match(r"\d+\.\d+", genome_id):
         try:
             for url in (
@@ -233,7 +201,7 @@ else:
                 if not requests.head(url).ok:
                     genome_id = None
                     st.sidebar.error(
-                        "This genome is not supported. Try searching instead."
+                        "This genome ID is not supported. Try searching for the organism name instead."
                     )
         except ConnectionError:
             print("Connection error")
@@ -262,7 +230,12 @@ def br(times=1):
 if genome_id:
     br()
 
-    full_data, gene_count, sequence_accession_id, gene_locations = to_pid(genome_id)
+    full_data, sequence_accession_id, gene_locations = to_pid(genome_id)
+    if not full_data:
+        submit = False
+        st.sidebar.error(
+            "This genome is not supported. Try searching for the organism name instead."
+        )
     df = pd.DataFrame.from_dict(
         full_data, orient="index", columns=["RefSeq", "Description", "Protein ID"]
     )
@@ -346,10 +319,10 @@ if submit:
             for i, cluster in enumerate(clusters):
                 if not (
                     cluster_size_range[0] <= len(cluster) <= cluster_size_range[1]
-                    and must_pegs.issubset({full_data[j].refseq.lower() for j in cluster})
+                    and must_pegs.issubset({full_data[j].n_refseq.lower() for j in cluster})
                     and (
                         not any_pegs
-                        or any([full_data[j].refseq.lower() in any_pegs for j in cluster])
+                        or any([full_data[j].n_refseq.lower() in any_pegs for j in cluster])
                     )
                     and (
                         not keywords
@@ -397,7 +370,7 @@ if submit:
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             dfx["RefSeq"] = dfx["RefSeq"].apply(
-                lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r}</a>'
+                lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper()}</a>'
             )
             dfx["Protein ID"] = dfx["Protein ID"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
@@ -411,7 +384,7 @@ if submit:
                     escape=False,
                     classes=["table-borderless"],
                     border=0,
-                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x}</b>'} if detailed else None,
+                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'} if detailed else None,
                 ),
                 unsafe_allow_html=True,
             )
