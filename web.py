@@ -230,7 +230,7 @@ def br(times=1):
 if genome_id:
     br()
 
-    full_data, sequence_accession_id, gene_locations = to_pid(genome_id)
+    full_data, sequence_accession_id, gene_locations, approximated_refseqs = to_pid(genome_id)
     if not full_data:
         submit = False
         st.sidebar.error(
@@ -370,7 +370,7 @@ if submit:
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             dfx["RefSeq"] = dfx["RefSeq"].apply(
-                lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper()}</a>'
+                lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>" + ("<span title='Approximate RefSeq assignment'> ⚠️</span>" if r in approximated_refseqs else '')}"""
             )
             dfx["Protein ID"] = dfx["Protein ID"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'

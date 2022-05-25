@@ -44,6 +44,8 @@ LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 @lru_cache(128)
 def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocInfo]]:
+    approximated_refseqs = []
+
     genome_organism_id = genome_id.split('.')[0]
     genome_data = get_genome_data(genome_id)
     feature_data = genome_data["docs"]
@@ -72,9 +74,10 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
                     n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
 
                     if protein_id == "None":
-                        if adjacent_full_data.protein_id[0].isdigit():
+                        if adjacent_full_data.protein_id[-1].isdigit():
                             protein_prefix, adjacent_protein_counter = get_prefix_counter(adjacent_full_data.protein_id)
                             protein_id = protein_prefix + str(adjacent_protein_counter - delta)
+                    approximated_refseqs.append(n_refseq)
                     break
             else:
                 feature_data.append(feature)
@@ -95,7 +98,7 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
     gene_count: int = genome_data["numFound"]
-    return full_data, sequence_accession_id, gene_locations
+    return full_data, sequence_accession_id, gene_locations, approximated_refseqs
 
 def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}
