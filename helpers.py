@@ -36,7 +36,7 @@ Wait = PidFile
 def curl_output(*args: str)->bytes:
     return check_output(('curl', '--compressed') + args)
 
-PatricMeta = namedtuple('PatricMeta', ['refseq', 'desc', 'protein_id'])
+PatricMeta = namedtuple('PatricMeta', ['desc', 'n_refseq', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 @lru_cache(128)
@@ -49,9 +49,10 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
     full_data = {}
     assert feature_data
     for feature in feature_data:
-        refseq = feature.get("refseq_locus_tag") or symbol_refseq_map(genome_organism_id).get(feature.get("gene"))
-        if not refseq: # Some genes have neither refseq nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
+        refseq = feature.get("refseq_locus_tag") or feature.get("gene")
+        if not refseq: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
             continue
+        n_refseq = normalize_refseq(refseq)
 
         desc: str = feature["product"]
         desc_col_loc = desc.find(': ')
@@ -61,7 +62,7 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
         protein_id = feature.get("protein_id", "None")
         patric_id = int(feature["patric_id"].split(".")[-1])
         full_data[patric_id] = PatricMeta(
-            desc=desc, refseq=refseq, protein_id=protein_id
+            desc=desc, n_refseq=n_refseq, protein_id=protein_id
         )
         
         gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
@@ -111,10 +112,13 @@ def get_genome_data(genome_id: str):
 def stringdb_aliases(genome_organism_id) -> str:
     return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
 
-def refseq_symbol_pairs(genome_organism_id: str) -> tuple[str,str]:
+def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
     for match in re.finditer(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)$", stringdb_aliases(genome_organism_id), re.MULTILINE):
-        yield match.groups()
-        
-@lru_cache(1)
-def symbol_refseq_map(genome_organism_id: str) -> dict[str, str]:
-    return {symbol: refseq for refseq, symbol in refseq_symbol_pairs(genome_organism_id)}
+        string_id, refseq = match.groups()
+        n_refseq = normalize_refseq(refseq)
+        yield string_id, n_refseq
+
+def normalize_refseq(s: str):
+        # patric genome removes '_' from 'MAP_0001'
+        # Still a valid refseq after normalization https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
+        return s.lower().replace('_', '')

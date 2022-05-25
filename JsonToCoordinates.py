@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from gzip import decompress
-from helpers import curl_output, to_pid
+from helpers import curl_output, normalize_refseq, string_id_n_refseq_pairs, to_pid
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -22,16 +22,19 @@ colors = ["vlred", "vlblue", "lyellow", "orange", "gold", "lgrey", "lbrown", "pu
 random.seed(7)
 random.shuffle(colors)
 
-def normalize_refseq(s: str):
-        # patric genome removes '_' from 'MAP_0001'
-        return s.replace('_', '')
-        return ''.join(c for c in s if c.isdigit())
+def get_prefix_counter(string):
+        digits = []
+        for i, c in enumerate(reversed(string)):
+                if not c.isdigit():
+                        break
+                digits.append(c)
+        return string[:-i], int(''.join(reversed(digits)))
 
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
     full_data, _, locations = to_pid(genome_id)
 
-    refseq_idx_pid = {normalize_refseq(gene.refseq): (i, pid)
+    refseq_idx_pid = {gene.n_refseq: (i, pid)
         for i, (pid, gene) in
         enumerate(sorted(
                 full_data.items(),
@@ -40,11 +43,25 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
          
     organism = genome_id.split('.')[0]
     pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
+    string_id_n_refseq_map = dict(string_id_n_refseq_pairs(organism))
+    def get_refseq(string_id):
+        # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
+        if string_id in string_id_n_refseq_map:
+                return string_id_n_refseq_map[string_id]
+        prefix, counter = get_prefix_counter(string_id)
+        for delta in (-1, 1):
+                test_string_id = prefix + str(counter + delta)
+                if test_string_id in string_id_n_refseq_map:
+                        test_refseq = string_id_n_refseq_map[test_string_id]
+                        r_prefix, r_counter = get_prefix_counter(test_refseq)
+                        return r_prefix + str(r_counter - delta)
+        raise Exception(f"No refseq equivalent (BLAST_.*) found for {string_id=} for {genome_id=}")
+
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
-            ng1 = normalize_refseq(g1)
-            ng2 = normalize_refseq(g2)
-            if ng1 in refseq_idx_pid and ng2 in refseq_idx_pid and refseq_idx_pid[ng1][0] + 1 == refseq_idx_pid[ng2][0]:
-                string[f"fig|{genome_id}.peg.{refseq_idx_pid[ng1][1]}"] = float(score)/1000
+            r1 = get_refseq(g1)
+            r2 = get_refseq(g2)
+            if r1 in refseq_idx_pid and r2 in refseq_idx_pid and refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
+                string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
 
     print("Parsed STRING scores")
     return string

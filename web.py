@@ -10,7 +10,7 @@
 
 from gzip import decompress
 from io import TextIOWrapper
-from helpers import Wait, refseq_symbol_pairs, stringdb_aliases
+from helpers import Wait, string_id_n_refseq_pairs
 import numpy as np
 from json import dumps, loads
 from os import environ
@@ -180,8 +180,8 @@ if genome_id_option == search:
                     organism_name = st.selectbox("Choose organism", organisms)
                     
                 genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
-                a_refseq, a_gene_symbol = next(refseq_symbol_pairs(genome_organism_id))
-                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_refseq}%22),keyword(%22{a_gene_symbol}%22)))&limit(1)'))
+                a_string_id, a_refseq = next(string_id_n_refseq_pairs(genome_organism_id))
+                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
                 if features:
                     genome_id = features[0]['genome_id']
                 else:
@@ -319,10 +319,10 @@ if submit:
             for i, cluster in enumerate(clusters):
                 if not (
                     cluster_size_range[0] <= len(cluster) <= cluster_size_range[1]
-                    and must_pegs.issubset({full_data[j].refseq.lower() for j in cluster})
+                    and must_pegs.issubset({full_data[j].n_refseq.lower() for j in cluster})
                     and (
                         not any_pegs
-                        or any([full_data[j].refseq.lower() in any_pegs for j in cluster])
+                        or any([full_data[j].n_refseq.lower() in any_pegs for j in cluster])
                     )
                     and (
                         not keywords
