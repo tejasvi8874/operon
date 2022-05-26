@@ -369,8 +369,11 @@ if submit:
         show_all = False
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
+            approximation_note = '"Approximate RefSeq assignment"'
             dfx["RefSeq"] = dfx["RefSeq"].apply(
-                lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>" + ("<span title='Approximate RefSeq assignment'> ⚠️</span>" if r in approximated_refseqs else '')}"""
+                    lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>"
+                            + ("<br><a style='text-decoration: none;' target='_self' href='javascript:alert(" + approximation_note + ")'><span title=" + approximation_note + ">⚠️</span></a>" if r in approximated_refseqs else '')
+                        }"""
             )
             dfx["Protein ID"] = dfx["Protein ID"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
