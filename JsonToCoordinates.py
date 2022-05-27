@@ -40,9 +40,9 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
 
     string_id_n_refseq_map = dict(string_id_n_refseq_pairs(organism))
     def get_refseq(string_id):
-        # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
         if string_id in string_id_n_refseq_map:
                 return string_id_n_refseq_map[string_id]
+        # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
         prefix, counter = get_prefix_counter(string_id)
         for delta in (-1, 1):
                 test_string_id = prefix + str(counter + delta)
@@ -54,10 +54,17 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         return normalize_refseq(string_id)
 
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
-            r1 = get_refseq(g1)
-            r2 = get_refseq(g2)
-            if r1 in refseq_idx_pid and r2 in refseq_idx_pid and refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
-                string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
+        # patric genome removes '_' from 'MAP_0001' in refseq field (not always)
+        # Not always valid refseq after removal so not done in normalize_refseq
+        # Valid: https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
+        # Valid: https://www.ncbi.nlm.nih.gov/refseq/?term=b21_01280
+        # Invalid: https://www.ncbi.nlm.nih.gov/refseq/?term=b2101280
+        for cg1, cg2 in ((g1, g2), (g1.replace('_', ''), g2.replace('_', ''))):
+                r1 = get_refseq(cg1)
+                r2 = get_refseq(cg2)
+                if r1 in refseq_idx_pid and r2 in refseq_idx_pid and refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
+                    string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
+                    break
 
     print("Parsed STRING scores")
     return string
