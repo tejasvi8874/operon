@@ -144,9 +144,9 @@ if genome_id_option == search:
 
         # Prevent model inference on local machine
         # if not streamlit_cloud:
-        #     del sample_organisms["Custom"]
-        organism_selection = st.sidebar.selectbox(
-            "Choose organism", sample_organisms, index=7
+        #     ...
+        organism_selection = st.selectbox(
+            "Choose organism", sample_organisms, index=7, help="Press Backspace key to change search query"
         )
         genome_id = sample_organisms[organism_selection]
 
@@ -155,24 +155,19 @@ if genome_id_option == search:
                 "It may take long to fetch external data for custom organism during first query."
             )
 
-        if not genome_id and (
-            organism_query := st.sidebar.text_input(
-                "Enter name",
-                help="E.g. Mycobacterium tuberculosis H37Rv, Escherichia coli ATCC8739",
-            ).strip()
-        ):
+        if not genome_id:
             organism_pattern = re.compile("(?<=<span class='informal'>).*?(?=<\/span>)")
             organisms = sorted(set(
                 organism_pattern.findall(
                 curl_output(
-                    f"https://string-db.org/cgi/queryspeciesnames?species_text={quote_plus(organism_query)}&running_number=10&auto_detect=0&home_species=0&home_species_type=core&show_clades=0&show_mapped=1"
+                    f"https://string-db.org/cgi/queryspeciesnames?species_text={quote_plus(organism_selection)}&running_number=10&auto_detect=0&home_species=0&home_species_type=core&show_clades=0&show_mapped=1"
                 ).decode()
                 )
             ), key = lambda o: o not in sample_organisms)
             if not organisms:
                 st.error(f"No organism of such name found.")
                 st.markdown(
-                    f"Try [alternate names](https://www.google.com/search?q=site%3Astring-db.org%2Fnetwork+{quote_plus(organism_query)})."
+                    f"Try [alternate names](https://www.google.com/search?q=site%3Astring-db.org%2Fnetwork+{quote_plus(organism_selection)})."
                 )
             else:
                 if len(organisms) == 1 and organism_selection != "Custom":
@@ -232,7 +227,9 @@ def br(times=1):
 if genome_id:
     br()
 
-    full_data, sequence_accession_id, gene_locations, approximated_refseqs = to_pid(genome_id)
+    full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present = to_pid(genome_id)
+    if not refseq_locus_tag_present:
+        st.warning("The RefSeq approximations used for this genome might reduce the operon prediction accuracy due to absence of the corresponding annotations in the PATRIC database.")
     if not full_data:
         submit = False
         st.sidebar.error(

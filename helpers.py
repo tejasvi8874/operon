@@ -1,4 +1,6 @@
 from heapq import heappush
+from dataclasses import dataclass
+from typing import Optional, NamedTuple
 from string import ascii_letters
 import sys
 from collections import namedtuple
@@ -42,8 +44,15 @@ def curl_output(*args: str)->bytes:
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
-@lru_cache(128)
-def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocInfo]]:
+class PidData(NamedTuple):
+    full_data: tuple[dict[int]]
+    sequence_accession_id: str
+    gene_locations: dict[str, LocInfo]
+    approximated_refseqs: Optional[list[str]]
+    refseq_locus_tag_present: bool
+
+#@lru_cache(128)
+def to_pid( genome_id: str) -> PidData:
     approximated_refseqs = []
 
     genome_organism_id = genome_id.split('.')[0]
@@ -53,7 +62,8 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
     gene_locations = {}
     full_data = {}
     assert feature_data
-    remaining = []
+    refseq_locus_tag_present = False
+    used_stripped_refseqs = {normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None")).rstrip(ascii_letters) for feature in feature_data}
     i = 0
     max_i = 2*len(feature_data)
     while i < len(feature_data) and i < max_i:
@@ -62,16 +72,19 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
 
         patric_id = int(feature["patric_id"].split(".")[-1])
         refseq = feature.get("refseq_locus_tag") or feature.get("gene")
+        refseq_locus_tag_present = refseq_locus_tag_present or "refseq_locus_tag" in feature
         protein_id = feature.get("protein_id", "None")
 
-        if refseq: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
+        if refseq:
             n_refseq = normalize_refseq(refseq)
-        else:
+        else: # Some genes have neither refseq locus id nor gene symbol assigned https://patricbrc.org/view/Feature/PATRIC.83332.12.NC_000962.CDS.9963.10160.fwd#view_tab=overview
             for delta in (1, -1):
                 if patric_id+delta in full_data:
                     adjacent_full_data = full_data[patric_id+delta]
                     refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq.rstrip(ascii_letters))
                     n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
+                    if n_refseq in used_stripped_refseqs: # Adjacent refseqs already assigned
+                        continue
 
                     if protein_id == "None":
                         if adjacent_full_data.protein_id[-1].isdigit():
@@ -98,7 +111,7 @@ def to_pid( genome_id: str) -> tuple[dict[int, PatricMeta], str, dict[str, LocIn
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
     gene_count: int = genome_data["numFound"]
-    return full_data, sequence_accession_id, gene_locations, approximated_refseqs
+    return PidData(full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
 def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}

@@ -24,7 +24,9 @@ random.shuffle(colors)
 
 import re
 def parse_string_scores(genome_id: str)->dict[str,float]:
-    full_data, _, locations, _ = to_pid(genome_id)
+    pid_data = to_pid(genome_id)
+    full_data = pid_data.full_data
+    locations = pid_data.locations
 
     refseq_idx_pid = {gene.n_refseq: (i, pid)
         for i, (pid, gene) in
