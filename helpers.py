@@ -167,3 +167,12 @@ def get_prefix_counter(string):
         if not digits:
             raise Exception(f"Can't get prefix of {string}")
         return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))
+
+def species_list() -> list[str]:
+    species_list_path = Path(".json_files/species.txt")
+    if species_list_path.is_file():
+        return species_list_path.read_text().splitlines()
+    # Considering only Bacteria for now. Archaea might work too.
+    species = sorted(re.findall(r"^\d+\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", curl_output("https://stringdb-static.org/download/species.v11.5.txt").decode(), re.MULTILINE))
+    species_list_path.write_text('\n'.join(species))
+    return species

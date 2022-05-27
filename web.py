@@ -10,7 +10,6 @@
 
 from gzip import decompress
 from io import TextIOWrapper
-from helpers import Wait, string_id_n_refseq_pairs
 import numpy as np
 from json import dumps, loads
 from os import environ
@@ -24,6 +23,7 @@ from urllib.parse import quote_plus
 from typing import Optional
 from threading import Thread
 from time import time, sleep
+from collections import defaultdict
 
 import pandas as pd
 from get_json import operon_clusters, operon_probs
@@ -31,7 +31,7 @@ import streamlit as st
 import sys
 import shlex
 
-from helpers import query_keywords, to_pid, curl_output, data
+from helpers import query_keywords, to_pid, curl_output, data, Wait, string_id_n_refseq_pairs, species_list
 from pathlib import Path
 import shlex
 import subprocess
@@ -129,7 +129,7 @@ if streamlit_cloud:
 
 genome_id = None
 if genome_id_option == search:
-        sample_organisms = {}
+        sample_organisms = defaultdict(lambda: None)
         for p in Path(".json_files").glob("*/genome.json"):
             genome_name_file = p.parent.joinpath('genome_name.txt')
             if not genome_name_file.exists():
@@ -139,7 +139,8 @@ if genome_id_option == search:
                 genome_name = genome_name_file.read_text()
 
             sample_organisms[ genome_name ] = p.parent.name
-        sample_organisms["Custom"] = None
+        for species_name in species_list():
+            sample_organisms.setdefault(species_name, None)
 
         # Prevent model inference on local machine
         # if not streamlit_cloud:
@@ -147,13 +148,14 @@ if genome_id_option == search:
         organism_selection = st.sidebar.selectbox(
             "Choose organism", sample_organisms, index=7
         )
-        if organism_selection == "Custom":
+        genome_id = sample_organisms[organism_selection]
+
+        if not genome_id:
             st.sidebar.error(
                 "It may take long to fetch external data for custom organism during first query."
             )
-        genome_id = sample_organisms[organism_selection]
 
-        if genome_id is None and (
+        if not genome_id and (
             organism_query := st.sidebar.text_input(
                 "Enter name",
                 help="E.g. Mycobacterium tuberculosis H37Rv, Escherichia coli ATCC8739",
