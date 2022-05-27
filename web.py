@@ -146,7 +146,7 @@ if genome_id_option == search:
         # if not streamlit_cloud:
         #     ...
         organism_selection = st.selectbox(
-            "Choose organism", sample_organisms, index=7, help="Press Backspace key to change search query"
+            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query"
         )
         genome_id = sample_organisms[organism_selection]
 
@@ -156,33 +156,16 @@ if genome_id_option == search:
             )
 
         if not genome_id:
-            organism_pattern = re.compile("(?<=<span class='informal'>).*?(?=<\/span>)")
-            organisms = sorted(set(
-                organism_pattern.findall(
-                curl_output(
-                    f"https://string-db.org/cgi/queryspeciesnames?species_text={quote_plus(organism_selection)}&running_number=10&auto_detect=0&home_species=0&home_species_type=core&show_clades=0&show_mapped=1"
-                ).decode()
-                )
-            ), key = lambda o: o not in sample_organisms)
-            if not organisms:
-                st.error(f"No organism of such name found.")
-                st.markdown(
-                    f"Try [alternate names](https://www.google.com/search?q=site%3Astring-db.org%2Fnetwork+{quote_plus(organism_selection)})."
-                )
-            else:
-                if len(organisms) == 1 and organism_selection != "Custom":
-                    organism_name = next(iter(organisms))
-                else:
-                    st.write("---")
-                    organism_name = st.selectbox("Choose organism", organisms)
-                    
-                genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
-                a_string_id, a_refseq = next(string_id_n_refseq_pairs(genome_organism_id))
-                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
+            genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_selection)}")).groups()[0].decode()
+            string_refseq_gen = string_id_n_refseq_pairs(genome_organism_id)
+            for _, (a_string_id, a_refseq) in zip(range(4), string_refseq_gen):
+                features = loads(curl_output('https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
                 if features:
                     genome_id = features[0]['genome_id']
-                else:
-                    st.error("No compatible genomes found in PATRIC and STRING database.")
+                    break
+            else:
+                print(genome_organism_id, a_string_id, a_refseq, file=sys.stderr)
+                st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
     genome_id = st.sidebar.text_input(
         "Genome ID",

@@ -54,8 +54,14 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         return normalize_refseq(string_id)
 
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
-            r1 = get_refseq(g1)
-            r2 = get_refseq(g2)
+        # patric genome removes '_' from 'MAP_0001'
+        # Refseq doesn't stay valid after _ removal everytime
+        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
+        # invalid https://www.ncbi.nlm.nih.gov/refseq/?term=b2100002
+        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=b21_00002
+        for cg1, cg2 in ((g1, g2), (g1.replace('_', ''), g2.replace('_', ''))):
+            r1 = get_refseq(cg1)
+            r2 = get_refseq(cg2)
             if r1 in refseq_idx_pid and r2 in refseq_idx_pid and refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
                 string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
 

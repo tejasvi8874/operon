@@ -158,10 +158,7 @@ def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
         n_refseq = normalize_refseq(refseq1 or refseq2)
         yield string_id, n_refseq
 
-def normalize_refseq(s: str):
-        # patric genome removes '_' from 'MAP_0001'
-        # Still a valid refseq after normalization https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
-        return s.lower().replace('_', '')
+normalize_refseq = str.lower
 
 
 def get_prefix_counter(string):
