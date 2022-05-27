@@ -48,7 +48,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
 
         async def fetch_compare_region():
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(limit=None)) as session:
                 for i, coro in enumerate(asyncio.as_completed([get_compare_region(gene, session) for gene in gene_figure_name])):
                     await coro
                     progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
