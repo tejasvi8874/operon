@@ -1,3 +1,7 @@
+import requests
+import sys
+import asyncio
+import aiohttp
 from functools import lru_cache
 from helpers import Wait
 from gzip import decompress
@@ -15,6 +19,7 @@ from helpers import data
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
 
+
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     placeholder = st.empty()
     placeholder.info("Please wait while we fetch the data and predict operons. It might take upto 15 minutes.")
@@ -25,30 +30,30 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
     json_folder = f".json_files/{genome_id}/compare_region"
     makedirs(json_folder, exist_ok=True)
+
     if len(list(Path(json_folder).iterdir())) < len(gene_figure_name)-50:
-        with ThreadPoolExecutor(60, "JSONFetcher") as executor:
-            tasks =[]
-            for gene in gene_figure_name:
-                json_path = f"{json_folder}/{gene}.json"
-                if not Path(json_path).exists():
-                    args = [
-                        "curl",
-                        "--fail",
-                        "--max-time",
-                        "300",
-                        "--data-binary",
-                        '{"method": "SEED.compare_regions_for_peg", "params": ["'
-                        + gene
-                        + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}',
-                        "https://p3.theseed.org/services/compare_region",
-                        "--compressed",
-                        "-o",
-                        json_path,
-                    ]
-                    tasks.append(executor.submit(run, args))
-                    genome_data_changed = True
-            for i, future in enumerate(as_completed(tasks)):
-                progress_bar.progress(i/len(tasks)*0.50)
+        async def get_compare_region(fig_gene, session):
+            json_path = Path(f"{json_folder}/{fig_gene}.json")
+            if not Path(json_path).exists():
+                data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
+                resp = await session.post('https://p3.theseed.org/services/compare_region', data=data)
+                async with resp:
+                    if not resp.ok:
+                        err_msg = f"Error with {fig_gene}. " + """Doing with aiohttp though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + (await resp.read())
+                        print(err_msg, file=sys.stderr)
+                        raise Exception(err_msg)
+                    json_path.write_bytes(await resp.read())
+                nonlocal genome_data_changed
+                genome_data_changed = True
+
+
+        async def fetch_compare_region():
+            async with aiohttp.ClientSession() as session:
+                for i, coro in enumerate(asyncio.as_completed([get_compare_region(gene, session) for gene in gene_figure_name])):
+                    await coro
+                    progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
+
+        asyncio.run(fetch_compare_region())
 
     progress_bar.progress(0.50)
 
