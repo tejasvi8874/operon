@@ -38,7 +38,10 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     organism = genome_id.split('.')[0]
     pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
 
-    string_id_n_refseq_map = dict(string_id_n_refseq_pairs(organism))
+    string_id_n_refseq_map = {}
+    for string_id, n_refseq in string_id_n_refseq_pairs(organism):
+        string_id_n_refseq_map.setdefault(string_id, set()).add(n_refseq)
+
     def get_refseq(string_id):
         # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
         if string_id in string_id_n_refseq_map:
@@ -47,11 +50,11 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         for delta in (-1, 1):
                 test_string_id = prefix + str(counter + delta)
                 if test_string_id in string_id_n_refseq_map:
-                        test_refseq = string_id_n_refseq_map[test_string_id]
-                        r_prefix, r_counter = get_prefix_counter(test_refseq)
-                        return r_prefix + str(r_counter - delta)
+                    return {r_prefix + str(r_counter - delta)
+                            for test_refseq in string_id_n_refseq_map[test_string_id]
+                            for r_prefix, r_counter in get_prefix_counter(test_refseq)}
         # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
-        return normalize_refseq(string_id)
+        return {normalize_refseq(string_id)}
 
     for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
         # patric genome removes '_' from 'MAP_0001'
@@ -60,10 +63,13 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         # invalid https://www.ncbi.nlm.nih.gov/refseq/?term=b2100002
         # valid https://www.ncbi.nlm.nih.gov/refseq/?term=b21_00002
         for cg1, cg2 in ((g1, g2), (g1.replace('_', ''), g2.replace('_', ''))):
-            r1 = get_refseq(cg1)
-            r2 = get_refseq(cg2)
-            if r1 in refseq_idx_pid and r2 in refseq_idx_pid and refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
-                string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
+            r1s = get_refseq(cg1).intersection(refseq_idx_pid)
+            r2s = get_refseq(cg2).intersection(refseq_idx_pid)
+            if r1s and r2s:
+                r1 = r1s.pop()
+                r2 = r2s.pop()
+                if refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
+                    string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
 
     print("Parsed STRING scores")
     return string
