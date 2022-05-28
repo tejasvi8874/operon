@@ -1,4 +1,5 @@
 import requests
+from shutil import rmtree
 import sys
 import asyncio
 import aiohttp
@@ -28,23 +29,24 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     genome_data_changed = False
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
 
-    json_folder = f".json_files/{genome_id}/compare_region"
-    makedirs(json_folder, exist_ok=True)
+    compare_region_json_path = Path(f".json_files/{genome_id}/compare_region.json")
 
-    if len(list(Path(json_folder).iterdir())) < len(gene_figure_name)-50:
+    if compare_region_json_path.exists():
+        compare_region_data = loads(compare_region_json_path.read_bytes())
+    else:
+        genome_data_changed = True
+
+        compare_region_data = {}
+
         async def get_compare_region(fig_gene, session):
-            json_path = Path(f"{json_folder}/{fig_gene}.json")
-            if not Path(json_path).exists():
-                data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
-                resp = await session.post('https://p3.theseed.org/services/compare_region', data=data)
-                async with resp:
-                    if not resp.ok:
-                        err_msg = f"Error with {fig_gene}. " + """Doing with aiohttp though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + (await resp.read())
-                        print(err_msg, file=sys.stderr)
-                        raise Exception(err_msg)
-                    json_path.write_bytes(await resp.read())
-                nonlocal genome_data_changed
-                genome_data_changed = True
+            data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
+            resp = await session.post('https://p3.theseed.org/services/compare_region', data=data)
+            async with resp:
+                if not resp.ok:
+                    err_msg = f"Error with {fig_gene}. " + """Doing with aiohttp though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + (await resp.read())
+                    print(err_msg, file=sys.stderr)
+                    raise Exception(err_msg)
+                compare_region_data[fig_gene] = await resp.read()
 
 
         async def fetch_compare_region():
@@ -54,6 +56,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
                     progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
 
         asyncio.run(fetch_compare_region())
+        compare_region_json_path.write_text(dumps(compare_region_data))
 
     progress_bar.progress(0.50)
 
@@ -65,7 +68,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
         Path(test_operons_path).unlink(missing_ok=True)
 
     if not Path(test_operons_path).exists() or len(list(Path(test_operons_path).glob('*.jpg'))) < len(pegs) - 50:
-        coords_filename = to_coordinates(json_folder, genome_id)
+        coords_filename = to_coordinates(compare_region_data, genome_id)
         print("Coordinates created")
 
         progress_bar.progress(0.55)

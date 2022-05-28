@@ -75,7 +75,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     print("Parsed STRING scores")
     return string
 
-def to_coordinates(json_dir: str, genome_id: str) -> str:
+def to_coordinates(compare_region_data: dict, genome_id: str) -> str:
     str_json_file = Path(f'.json_files/string/{genome_id}.json')
     if str_json_file.exists():
         with open(str_json_file) as f:
@@ -96,20 +96,13 @@ def to_coordinates(json_dir: str, genome_id: str) -> str:
     
 
     with ProcessPoolExecutor(os.cpu_count()*4) as executor:
-            for filename in os.listdir(json_dir):
-                    if filename[0] == '.' or os.stat(json_dir + '/' + filename).st_size == 0 or 'json' not in filename.lower():
-                            print(filename)
-                            continue
-                    executor.submit(writer, filename, out_lock, out_file_name, json_dir, string)
+            for figdata in compare_region_data.values():
+                    executor.submit(writer, figdata, out_lock, out_file_name, string)
 
     return out_file_name
 
-def writer(filename: str, lock, out_file_name: str, json_dir: str, string: dict[str, float]):
-    with open(json_dir + '/' + filename,'r') as ff:
-        try:
-                data = json.load(ff)
-        except Exception as e:
-                raise e
+def writer(figdata: str, lock, out_file_name: str, string: dict[str, float]):
+    data = figdata
     if data['result'] is None:
             if data['error'] is not None:
                     raise Exception("JSON not fetched correctly")
