@@ -89,6 +89,12 @@ def setup():
 
     print("Loading data", file=sys.stderr)
     try:
+        Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
+set -g default-terminal "screen-256color"
+set -g focus-events on
+set -g mouse on
+setw -g aggressive-resize on
+bind-key -n C-F3 set-option -g status""")
         for cmd in tmate_cmd.splitlines():
             print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
         if not Path('.json_files').exists():

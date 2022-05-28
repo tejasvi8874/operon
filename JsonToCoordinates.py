@@ -52,7 +52,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
                 if test_string_id in string_id_n_refseq_map:
                     return {r_prefix + str(r_counter - delta)
                             for test_refseq in string_id_n_refseq_map[test_string_id]
-                            for r_prefix, r_counter in get_prefix_counter(test_refseq)}
+                            for r_prefix, r_counter in [get_prefix_counter(test_refseq)]}
         # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
         return {normalize_refseq(string_id)}
 
@@ -71,6 +71,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
                 if refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
                     string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
 
+    assert string
     print("Parsed STRING scores")
     return string
 
