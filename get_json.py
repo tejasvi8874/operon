@@ -35,10 +35,16 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
         compare_region_data = loads(compare_region_json_path.read_bytes())
     else:
         genome_data_changed = True
+        compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
+        compare_region_temp.mkdir(parents=True, exist_ok=True)
 
         compare_region_data = {}
 
         async def get_compare_region(fig_gene, session):
+            temp_json_path = compare_region_temp.joinpath(f'{fig_gene}.json')
+            if temp_json_path.exists():
+                compare_region_data[fig_gene] = loads(temp_json_path.read_bytes())
+                return
             data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
             resp = await session.post('https://p3.theseed.org/services/compare_region', data=data)
             async with resp:
@@ -46,7 +52,9 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
                     err_msg = f"Error with {fig_gene}. " + """Doing with aiohttp though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + (await resp.read())
                     print(err_msg, file=sys.stderr)
                     raise Exception(err_msg)
-                compare_region_data[fig_gene] = await resp.read()
+                resp_bytes = await resp.read()
+                temp_json_path.write_bytes(resp_bytes)
+                compare_region_data[fig_gene] = loads(resp_bytes)
 
 
         async def fetch_compare_region():
@@ -57,6 +65,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
         asyncio.run(fetch_compare_region())
         compare_region_json_path.write_text(dumps(compare_region_data))
+        rmtree(compare_region_temp)
 
     progress_bar.progress(0.50)
 

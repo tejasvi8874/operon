@@ -164,8 +164,8 @@ if genome_id_option == search:
         if not genome_id:
             genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_selection)}")).groups()[0].decode()
             string_refseq_gen = string_id_n_refseq_pairs(genome_organism_id)
-            for _, (a_string_id, a_refseq) in zip(range(4), string_refseq_gen):
-                features = loads(curl_output('https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
+            for _  in range(4):
+                features = loads(curl_output('https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(50), string_refseq_gen)])}))&limit(1)'))
                 if features:
                     genome_id = features[0]['genome_id']
                     break

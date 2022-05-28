@@ -12,7 +12,7 @@ from gzip import decompress
 from urllib.request import urlretrieve
 from glob import glob
 from functools import lru_cache
-from subprocess import run, check_output
+from subprocess import run, check_output, DEVNULL
 from json import dump, dumps, load, loads
 from time import time
 from pid import PidFile
@@ -39,7 +39,8 @@ Wait = PidFile
 
 @lru_cache(128)
 def curl_output(*args: str)->bytes:
-    return check_output(('curl', '--compressed') + args)
+    return check_output(('curl', '--compressed', '-sS') + args)
+
 
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
@@ -148,9 +149,13 @@ def get_genome_data(genome_id: str):
             data.updated()
     return genome_data
 
-@lru_cache(32)
 def stringdb_aliases(genome_organism_id) -> str:
-    return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+    path = Path(f'.json_files/alias/{genome_organism_id}.txt')
+    if path.exists():
+        return path.read_text()
+    aliases = decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+    path.write_text(aliases)
+    return aliases
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
     for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
