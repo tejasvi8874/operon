@@ -135,7 +135,7 @@ if streamlit_cloud:
 
 genome_id = None
 if genome_id_option == search:
-        sample_organisms = defaultdict(lambda: None)
+        sample_organisms = defaultdict(lambda: (None, None))
         for p in Path(".json_files").glob("*/genome.json"):
             genome_name_file = p.parent.joinpath('genome_name.txt')
             if not genome_name_file.exists():
@@ -144,9 +144,9 @@ if genome_id_option == search:
             else:
                 genome_name = genome_name_file.read_text()
 
-            sample_organisms[ genome_name ] = p.parent.name
-        for species_name in species_list():
-            sample_organisms.setdefault(species_name, None)
+            sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
+        for organism_id, species_name in species_list():
+            sample_organisms.setdefault(species_name, (None, organism_id))
 
         # Prevent model inference on local machine
         # if not streamlit_cloud:
@@ -154,7 +154,7 @@ if genome_id_option == search:
         organism_selection = st.selectbox(
             "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query"
         )
-        genome_id = sample_organisms[organism_selection]
+        genome_id, genome_organism_id = sample_organisms[organism_selection]
 
         if not genome_id:
             st.sidebar.error(
@@ -162,7 +162,6 @@ if genome_id_option == search:
             )
 
         if not genome_id:
-            genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_selection)}")).groups()[0].decode()
             string_refseq_gen = string_id_n_refseq_pairs(genome_organism_id)
             for _  in range(4):
                 features = loads(curl_output('https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(50), string_refseq_gen)])}))&limit(1)'))

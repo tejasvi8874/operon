@@ -8,3 +8,5 @@ wget
 neovim
 fish
 openssh-server
+mosh
+ntop
