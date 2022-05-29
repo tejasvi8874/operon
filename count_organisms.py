@@ -15,7 +15,7 @@ from pathlib import Path
 
 data_path = Path('count_organisms.pkl')
 if data_path.exists():
-    with open(data_path) as f:
+    with open(data_path, 'rb') as f:
         data = pickle.load(f)
 else:
     data = {}
@@ -28,21 +28,12 @@ def pairwise(iterable):
     return zip(a, b)
 
 sessions = defaultdict(lambda: requests.Session())
-with open('nofind.txt') as f:
-    nofind = {l.split(' ')[-1] for l in f}
 
 def f(genome_organism_id, organism_selection):
     if organism_selection in data:
         return
     try:
-        if genome_organism_id in nofind:
-            data.setdefault(organism_selection, None)
-            return
-        try:
-            string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
-        except:
-            print("skip out")
-            return
+        string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
         for _  in range(3):
             resp = sessions[get_ident()].post(
                 'https://patricbrc.org/api/genome_feature',
@@ -66,7 +57,6 @@ def f(genome_organism_id, organism_selection):
     except Exception as e:
         print("exception", organism_selection, e)
         data.setdefault("errors", {})[organism_selection] = str(e)
-        raise
 
 def saver():
     with open(data_path, 'wb') as file:
@@ -83,7 +73,7 @@ if sync:
     for s in sl:
         f(*s)
 else:
-    with ThreadPoolExecutor() as ex:
+    with ThreadPoolExecutor(max_workers=100) as ex:
         for i, r in enumerate(as_completed([ex.submit(f, *s) for s in sl])):
             r.result()
             print(round((i+1)/len(sl), 1), end='\r')
