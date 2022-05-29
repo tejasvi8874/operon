@@ -92,7 +92,6 @@ def setup():
         Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
 set -g default-terminal "screen-256color"
 set -g focus-events on
-set -g mouse on
 setw -g aggressive-resize on
 bind-key -n C-F3 set-option -g status""")
         for cmd in tmate_cmd.splitlines():
@@ -162,9 +161,15 @@ if genome_id_option == search:
             )
 
         if not genome_id:
-            string_refseq_gen = string_id_n_refseq_pairs(genome_organism_id)
-            for _  in range(4):
-                features = loads(curl_output('https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(50), string_refseq_gen)])}))&limit(1)'))
+            string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+            for _  in range(3):
+                resp = session.post(
+                    'https://patricbrc.org/api/genome_feature',
+                    headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                    data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
+                    )
+                resp.raise_for_status()
+                features = loads(resp.content)
                 if features:
                     genome_id = features[0]['genome_id']
                     break
