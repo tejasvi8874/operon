@@ -29,10 +29,10 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     genome_data_changed = False
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
 
-    compare_region_json_path = Path(f".json_files/{genome_id}/compare_region.json")
+    compare_region_json_path = Path(f".json_files/{genome_id}/compare_region.json.gz")
 
     if compare_region_json_path.exists():
-        compare_region_data = loads(compare_region_json_path.read_bytes())
+        compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
     else:
         genome_data_changed = True
         compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
@@ -64,7 +64,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
                     progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
 
         asyncio.run(fetch_compare_region())
-        compare_region_json_path.write_text(dumps(compare_region_data))
+        compare_region_json_path.write_bytes(compress(dumps(compare_region_data).encode()))
         rmtree(compare_region_temp)
 
     progress_bar.progress(0.50)

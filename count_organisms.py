@@ -1,5 +1,5 @@
 from helpers import species_list, curl_output, string_id_n_refseq_pairs, stringdb_aliases
-from threading import get_ident
+from threading import get_ident, Thread
 from collections import defaultdict
 from queue import SimpleQueue, Empty
 import requests
@@ -28,12 +28,21 @@ def pairwise(iterable):
     return zip(a, b)
 
 sessions = defaultdict(lambda: requests.Session())
+with open('nofind.txt') as f:
+    nofind = {l.split(' ')[-1] for l in f}
 
 def f(genome_organism_id, organism_selection):
     if organism_selection in data:
         return
     try:
-        string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+        if genome_organism_id in nofind:
+            data.setdefault(organism_selection, None)
+            return
+        try:
+            string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+        except:
+            print("skip out")
+            return
         for _  in range(3):
             resp = sessions[get_ident()].post(
                 'https://patricbrc.org/api/genome_feature',
@@ -52,11 +61,21 @@ def f(genome_organism_id, organism_selection):
                 count += 1
                 break
         else:
+            data.setdefault(organism_selection, None)
             print("Couldn't find", organism_selection, genome_organism_id, file=sys.stderr)
     except Exception as e:
         print("exception", organism_selection, e)
         data.get("errors", {})[organism_selection] = str(e)
         raise
+
+def saver():
+    with open(data_path, 'wb') as file:
+        pickle.dump(data, file)
+def save_trigger():
+    while True:
+        Thread(target=saver).start()
+        sleep(5)
+Thread(target=save_trigger, daemon=True).start()
 
 sl = species_list()
 sync = 0
@@ -69,7 +88,5 @@ else:
             r.result()
             print(round((i+1)/len(sl), 1), end='\r')
 
-with open(data_path, 'wb') as file:
-    pickle.dump(data, file)
 print("errors", data.get("errors"))
 print("Total count", count)

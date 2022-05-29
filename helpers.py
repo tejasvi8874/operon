@@ -153,6 +153,7 @@ def stringdb_aliases(genome_organism_id) -> str:
     path = Path(f'.json_files/alias/{genome_organism_id}.txt')
     if path.exists():
         return path.read_text()
+    raise Exception("skiped saving")
     aliases = decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
     path.write_text(aliases)
     return aliases

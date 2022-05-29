@@ -1,9 +1,31 @@
-import requests
+"""
+from pathlib import Path
+root = Path('.json_files/alias')
+rem = 0
+with open('nofind.txt') as f:
+    for oid in [l.split(' ')[-1].strip() for l in f]:
+        f = root.joinpath(oid+'.txt')
+        if f.exists():
+            f.unlink()
+            rem += 1
+            print(rem)
+"""
 
-headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+from pathlib import Path
+from gzip import compress
+from concurrent.futures import ProcessPoolExecutor
 
-data = 'and(keyword(%221000565%22),or(keyword(%22METUNv1_00054%22),keyword(%22metunv1_00054%22),keyword(%22METUNv1_00055%22),keyword(%22metunv1_00055%22),keyword(%22METUNv1_00056%22),keyword(%22metunv1_00056%22),keyword(%22METUNv1_00057%22),keyword(%22metunv1_00057%22),keyword(%22METUNv1_00058%22),keyword(%22metunv1_00058%22),keyword(%22METUNv1_00059%22),keyword(%22metunv1_00059%22),keyword(%22METUNv1_00060%22),keyword(%22metunv1_00060%22),keyword(%22METUNv1_00061%22),keyword(%22metunv1_00061%22),keyword(%22METUNv1_00062%22),keyword(%22metunv1_00062%22),keyword(%22METUNv1_00063%22),keyword(%22metunv1_00063%22),keyword(%22METUNv1_00064%22),keyword(%22metunv1_00064%22),keyword(%22METUNv1_00065%22),keyword(%22metunv1_00065%22),keyword(%22METUNv1_00066%22),keyword(%22metunv1_00066%22),keyword(%22METUNv1_00067%22),keyword(%22metunv1_00067%22),keyword(%22METUNv1_00068%22),keyword(%22metunv1_00068%22),keyword(%22METUNv1_00069%22),keyword(%22metunv1_00069%22),keyword(%22METUNv1_00070%22),keyword(%22metunv1_00070%22),keyword(%22METUNv1_00071%22),keyword(%22metunv1_00071%22),keyword(%22METUNv1_00072%22),keyword(%22metunv1_00072%22),keyword(%22METUNv1_00073%22),keyword(%22metunv1_00073%22)))&limit(1)'
+root = Path('.json_files')
 
-response = requests.post('https://patricbrc.org/api/genome_feature', headers=headers, data=data)
-response.raise_for_status()
-print(dir(response))
+def f(fol):
+    if '.' in fol.name and fol.is_dir():
+        cr = fol.joinpath('compare_region.json')
+        tar = fol.joinpath(cr.name + '.gz')
+        if not tar.exists():
+            tar.write_bytes(compress(cr.read_bytes()))
+            cr.unlink()
+for fol in root.iterdir():
+    f(fol)
+#with ProcessPoolExecutor() as ex:
+#    for fol in root.iterdir():
+#        ex.submit(f, fol)
