@@ -55,8 +55,8 @@ def f(genome_organism_id, organism_selection):
                 if type(features) != list:
                     print(features)
                 genome_id = features[0]['genome_id']
-                data.get(organism_selection, set()).add(genome_id)
-                data.get("errors", {}).pop(organism_selection, None)
+                data.setdefault(organism_selection, set()).add(genome_id)
+                data.setdefault("errors", {}).pop(organism_selection, None)
                 global count
                 count += 1
                 break
@@ -65,7 +65,7 @@ def f(genome_organism_id, organism_selection):
             print("Couldn't find", organism_selection, genome_organism_id, file=sys.stderr)
     except Exception as e:
         print("exception", organism_selection, e)
-        data.get("errors", {})[organism_selection] = str(e)
+        data.setdefault("errors", {})[organism_selection] = str(e)
         raise
 
 def saver():
