@@ -31,7 +31,7 @@ import streamlit as st
 import sys
 import shlex
 
-from helpers import query_keywords, to_pid, curl_output, data, Wait, string_id_n_refseq_pairs, species_list
+from helpers import query_keywords, to_pid, curl_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id
 from pathlib import Path
 import shlex
 import subprocess
@@ -160,22 +160,11 @@ if genome_id_option == search:
                 "It may take long to fetch external data for custom organism during first query."
             )
 
+        genome_id = genome_id or get_genome_id(genome_organism_id)
+
         if not genome_id:
-            string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
-            for _  in range(3):
-                resp = session.post(
-                    'https://patricbrc.org/api/genome_feature',
-                    headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                    data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
-                    )
-                resp.raise_for_status()
-                features = loads(resp.content)
-                if features:
-                    genome_id = features[0]['genome_id']
-                    break
-            else:
-                print(genome_organism_id, a_string_id, a_refseq, file=sys.stderr)
-                st.error("No compatible genomes found in PATRIC and STRING database.")
+            print(genome_organism_id, file=sys.stderr)
+            st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
     genome_id = st.sidebar.text_input(
         "Genome ID",

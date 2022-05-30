@@ -1,6 +1,5 @@
-from helpers import species_list, curl_output, string_id_n_refseq_pairs, stringdb_aliases
+from helpers import species_list, curl_output, string_id_n_refseq_pairs, stringdb_aliases, get_session, get_genome_id
 from threading import get_ident, Thread
-from collections import defaultdict
 from queue import SimpleQueue, Empty
 import requests
 from itertools import chain, tee, groupby
@@ -19,41 +18,23 @@ if data_path.exists():
         data = pickle.load(f)
 else:
     data = {}
-count = 0
-
-def pairwise(iterable):
-    # Python 3.10 onwards pairwise('ABCDEFG') --> AB BC CD DE EF FG
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)
-
-sessions = defaultdict(lambda: requests.Session())
+count = len([v for v in data.values() if isinstance(v, set)])
 
 def f(genome_organism_id, organism_selection):
-    if organism_selection in data:
+    if data.get(organism_selection):
+    #if organism_selection in data:
+        data.setdefault("errors", {}).pop(organism_selection, None)
         return
     try:
-        string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
-        for _  in range(3):
-            resp = sessions[get_ident()].post(
-                'https://patricbrc.org/api/genome_feature',
-                headers={'Content-Type': 'application/x-www-form-urlencoded'},
-                data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
-                )
-            resp.raise_for_status()
-            features = loads(resp.content)
-            if features:
-                if type(features) != list:
-                    print(features)
-                genome_id = features[0]['genome_id']
-                data.setdefault(organism_selection, set()).add(genome_id)
-                data.setdefault("errors", {}).pop(organism_selection, None)
-                global count
-                count += 1
-                break
+        genome_id = get_genome_id(genome_organism_id)
+        if genome_id:
+            data.setdefault(organism_selection, set()).add(genome_id)
+            global count
+            count += 1
         else:
             data.setdefault(organism_selection, None)
             print("Couldn't find", organism_selection, genome_organism_id, file=sys.stderr)
+        data.setdefault("errors", {}).pop(organism_selection, None)
     except Exception as e:
         print("exception", organism_selection, e)
         data.setdefault("errors", {})[organism_selection] = str(e)
@@ -63,7 +44,7 @@ def saver():
         pickle.dump(data, file)
 def save_trigger():
     while True:
-        Thread(target=saver).start()
+        Thread(target=saver, daemon=False).start()
         sleep(5)
 Thread(target=save_trigger, daemon=True).start()
 

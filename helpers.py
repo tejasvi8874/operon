@@ -1,9 +1,12 @@
 from heapq import heappush
+from itertools import chain, groupby, tee
+from threading import get_ident
 from dataclasses import dataclass
 from typing import Optional, NamedTuple
 from string import ascii_letters
 import sys
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import requests
 import re
 from time import sleep
 from os import makedirs, mkdir
@@ -149,11 +152,17 @@ def get_genome_data(genome_id: str):
             data.updated()
     return genome_data
 
+sessions = defaultdict(lambda: requests.Session())
+def get_session():
+    return sessions[get_ident()]
+
 def stringdb_aliases(genome_organism_id) -> str:
     path = Path(f'.json_files/alias/{genome_organism_id}.txt')
     if path.exists():
         return path.read_text()
-    aliases = decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+    resp = get_session().get(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")
+    resp.raise_for_status()
+    aliases = decompress(resp.content).decode()
     #TODO: Handle saving?
     #path.write_text(aliases)
     return aliases
@@ -161,8 +170,7 @@ def stringdb_aliases(genome_organism_id) -> str:
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
     for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
         string_id, refseq1, refseq2 = match.groups()
-        n_refseq = normalize_refseq(refseq1 or refseq2)
-        yield string_id, n_refseq
+        yield string_id.removeprefix('gene:'), normalize_refseq(refseq1 or refseq2)
 
 normalize_refseq = str.lower
 
@@ -189,6 +197,28 @@ def species_list() -> list[tuple[str, str]]:
     if species_list_path.is_file():
         return loads(species_list_path.read_bytes())
     # Considering only Bacteria for now. Archaea might work too.
-    species = sorted(re.findall(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", curl_output("https://stringdb-static.org/download/species.v11.5.txt").decode(), re.MULTILINE))
+    resp = get_session().get("https://stringdb-static.org/download/species.v11.5.txt")
+    resp.raise_for_status()
+    species = sorted(re.findall(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", resp.content.decode(), re.MULTILINE))
     species_list_path.write_text(dumps(species))
     return species
+
+def pairwise(iterable):
+    # Python 3.10 onwards pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+def get_genome_id(genome_organism_id) -> Optional[str]:
+    string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+    for _  in range(3):
+        # curl https://patricbrc.org/api/genome_feature --data-raw 'and(keyword(%2283332%22),keyword(%22gene%22))'
+        resp = get_session().post(
+            'https://patricbrc.org/api/genome_feature',
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
+            )
+        resp.raise_for_status()
+        features = loads(resp.content)
+        if features:
+            return features[0]["genome_id"]
