@@ -21,8 +21,8 @@ else:
 count = len([v for v in data.values() if isinstance(v, set)])
 
 def f(genome_organism_id, organism_selection):
-    if data.get(organism_selection):
-    #if organism_selection in data:
+    #if data.get(organism_selection):
+    if organism_selection in data:
         data.setdefault("errors", {}).pop(organism_selection, None)
         return
     try:
