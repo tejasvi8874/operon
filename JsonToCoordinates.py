@@ -1,6 +1,6 @@
 from concurrent.futures import ProcessPoolExecutor
 from gzip import decompress
-from helpers import curl_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter
+from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -56,7 +56,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
         return {normalize_refseq(string_id)}
 
-    for g1, g2, score in pat.findall(decompress(curl_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
+    for g1, g2, score in pat.findall(decompress(get_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
         # patric genome removes '_' from 'MAP_0001'
         # Refseq doesn't stay valid after _ removal everytime
         # valid https://www.ncbi.nlm.nih.gov/refseq/?term=map0001

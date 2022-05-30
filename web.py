@@ -13,8 +13,6 @@ from io import TextIOWrapper
 import numpy as np
 from json import dumps, loads
 from os import environ
-import requests
-from urllib.request import urlopen
 from pathlib import Path
 from contextlib import nullcontext
 from subprocess import check_output
@@ -31,7 +29,7 @@ import streamlit as st
 import sys
 import shlex
 
-from helpers import query_keywords, to_pid, curl_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id
+from helpers import query_keywords, to_pid, get_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session
 from pathlib import Path
 import shlex
 import subprocess
@@ -177,7 +175,7 @@ else:
                 f"https://patricbrc.org/api/genome/{genome_id}",
                 f"https://stringdb-static.org/download/protein.links.v11.5/{genome_id.split('.')[0]}.protein.links.v11.5.txt.gz",
             ):
-                if not requests.head(url).ok:
+                if not get_session().head(url).ok:
                     genome_id = None
                     st.sidebar.error(
                         "This genome ID is not supported. Try searching for the organism name instead."
@@ -388,7 +386,7 @@ if submit:
                     start = gene_locations[min(dfx.index)].start-1
                     end = gene_locations[max(dfx.index)].end
                     # https://www.patricbrc.org/view/Genome/511145.12#view_tab=browser&loc=NC_000913%3A63298..63391&tracks=refseqs%2CRefSeqGenes&highlight=
-                    fasta = loads(curl_output(
+                    fasta = loads(get_output(
                         f"https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{sequence_accession_id}?reference_sequences_only=false&start={gene_locations[min(dfx.index)].start-1}&end={gene_locations[max(dfx.index)].end}"
                         ))["features"][0]["seq"][:end-start]
                     with c2:
