@@ -1,6 +1,7 @@
 from heapq import heappush
 from itertools import chain, groupby, tee
 from threading import get_ident
+import threading
 from dataclasses import dataclass
 from typing import Optional, NamedTuple
 from string import ascii_letters
@@ -48,7 +49,7 @@ Wait = PidFile
 def get_output(url)->bytes:
     resp = get_session().get(url)
     resp.raise_for_status()
-    return resp.output
+    return resp.content
 
 
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
@@ -153,8 +154,10 @@ def get_genome_data(genome_id: str) -> list[dict]:
     return genome_data
 
 sessions = defaultdict(lambda: requests.Session())
+session_lock = threading.Lock()
 def get_session():
-    return sessions[get_ident()]
+    with session_lock:
+        return sessions[get_ident()]
 
 def stringdb_aliases(genome_organism_id) -> str:
     path = Path(f'.json_files/alias/{genome_organism_id}.txt')

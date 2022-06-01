@@ -22,6 +22,7 @@ from typing import Optional
 from threading import Thread
 from time import time, sleep
 from collections import defaultdict
+import pickle
 
 import pandas as pd
 from get_json import operon_clusters, operon_probs
@@ -136,14 +137,16 @@ if genome_id_option == search:
         for p in Path(".json_files").glob("*/genome.json"):
             genome_name_file = p.parent.joinpath('genome_name.txt')
             if not genome_name_file.exists():
-                genome_name = loads(p.read_bytes())["docs"][0]["genome_name"]
+                genome_name = loads(p.read_bytes())[0]["genome_name"]
                 genome_name_file.write_text(genome_name)
             else:
                 genome_name = genome_name_file.read_text()
 
             sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
-        for organism_id, species_name in species_list():
-            sample_organisms.setdefault(species_name, (None, organism_id))
+        for species_name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes()).items():
+            if isinstance(genome_ids, set) and genome_ids:
+                a_genome_id = genome_ids.pop()
+                sample_organisms.setdefault(species_name, (a_genome_id, a_genome_id.split('.')[0]))
 
         # Prevent model inference on local machine
         # if not streamlit_cloud:

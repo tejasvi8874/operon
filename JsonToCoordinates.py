@@ -75,7 +75,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     print("Parsed STRING scores")
     return string
 
-def to_coordinates(compare_region_data: dict, genome_id: str) -> str:
+def to_coordinates(compare_region_data: list, genome_id: str) -> str:
     str_json_file = Path(f'.json_files/string/{genome_id}.json')
     if str_json_file.exists():
         with open(str_json_file) as f:
@@ -96,7 +96,7 @@ def to_coordinates(compare_region_data: dict, genome_id: str) -> str:
     
 
     with ProcessPoolExecutor(os.cpu_count()*4) as executor:
-            for figdata in compare_region_data.values():
+            for figdata in compare_region_data:
                     executor.submit(writer, figdata, out_lock, out_file_name, string)
 
     return out_file_name

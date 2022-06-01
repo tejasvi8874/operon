@@ -1,17 +1,22 @@
 from pathlib import Path
+from gzip import compress, decompress
 from concurrent.futures import ProcessPoolExecutor
 from json import loads, dumps
 
 root = Path('.json_files')
 def f(fol):
     print(fol)
-    j = fol.joinpath('genome.json')
+    j = fol.joinpath('compare_region.json.gz')
     if j.exists():
         print("in")
-        d = loads(j.read_bytes())
-        j.write_text(dumps(d["docs"]))
+        d = loads(decompress(j.read_bytes()))
+        print("loaded")
+        if isinstance(d, dict):
+            j.write_bytes(compress(dumps(list(d.values())).encode()))
         print("out")
-with ProcessPoolExecutor() as e:
-    e.map(f, root.iterdir())
-#for fol in root.iterdir():
-#    f(fol)
+if 1:
+    for fol in root.iterdir():
+        f(fol)
+else:
+    with ProcessPoolExecutor() as e:
+        e.map(f, root.iterdir())
