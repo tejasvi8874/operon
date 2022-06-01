@@ -153,7 +153,8 @@ st.write(
     unsafe_allow_html=True,
 )
 
-st.title("Operon Finder")
+#st.title("Operon Finder")
+st.write('<br><img style="width=100%" src="https://i.imgur.com/JJLF0Iz.png">',unsafe_allow_html=True)
 
 st.markdown("Cluster genes into operons")
 
