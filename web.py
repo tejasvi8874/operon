@@ -142,10 +142,14 @@ if genome_id_option == search:
             else:
                 genome_name = genome_name_file.read_text()
 
+            if p.parent.name == '224911.5':
+                continue
             sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
         for species_name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes()).items():
             if isinstance(genome_ids, set) and genome_ids:
                 a_genome_id = genome_ids.pop()
+                if a_genome_id == '224911.5':
+                    continue
                 sample_organisms.setdefault(species_name, (a_genome_id, a_genome_id.split('.')[0]))
 
         # Prevent model inference on local machine

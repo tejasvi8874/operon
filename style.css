@@ -29,13 +29,13 @@
  }
 
  [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-af {
-	 font-size: unset !important;
+	 font-size: xxx-large !important;
  }
 
  [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-bl {
 	 width: 40px !important;
  }
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-bk {
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-bq {
 	 height: 40px !important;
  }
 
