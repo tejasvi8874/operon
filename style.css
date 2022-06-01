@@ -32,10 +32,13 @@
 	 font-size: xxx-large !important;
  }
 
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-bl {
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="false"] {
+	 display: none !important;
+ }
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"].st-bl {
 	 width: 40px !important;
  }
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] .st-bq {
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"].st-bq {
 	 height: 40px !important;
  }
 
