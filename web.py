@@ -8,6 +8,17 @@
 # pr = cProfile.Profile()
 # pr.enable()
 
+import streamlit.components.v1 as components
+components.html(
+    """<script>
+/* Components live in their Iframe. Streamlit's context is the first parent.
+Find higher parents for each enclosing IFrames.
+Streamlit share adds another iframe on top. */
+const p = window.parent.parent;
+[p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));</script>
+""", height=0
+)
+
 from gzip import decompress
 from io import TextIOWrapper
 import numpy as np
@@ -37,7 +48,6 @@ from helpers import query_keywords, to_pid, get_output, data, Wait, string_id_n_
 from pathlib import Path
 import shlex
 import subprocess
-import streamlit.components.v1 as components
 
 def download_bytes_js(byte_data: bytes, file_name, mime_type) -> str:
     file_name = file_name.replace('`', ' ')
@@ -327,7 +337,7 @@ if submit:
 
             contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
             if contain_keyword:
-                desc_keyword_txt = st.text_input("", "mce")
+                desc_keyword_txt = st.text_input("Enter keywords", "mce")
                 keywords = query_keywords(desc_keyword_txt)
 
             body: list[str] = []
@@ -379,7 +389,6 @@ if submit:
                         "text/tab-separated-values"
                     )
             components.html(html, height=0)
-            st.write(html)
         st.button(f"Save results", on_click=download)
 
         show_all = False
@@ -432,16 +441,6 @@ if submit:
                     components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
     else:
         st.error(f"No matching clusters found")
-
-components.html(
-    """<script>
-/* Components live in their Iframe. Streamlit's context is the first parent.
-Find higher parents for each enclosing IFrames.
-Streamlit share adds another iframe on top. */
-const p = window.parent.parent;
-[p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));</script>
-"""
-)
 
 # pr.disable()
 # s = io.StringIO()
