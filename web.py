@@ -32,11 +32,35 @@ import streamlit as st
 import sys
 import shlex
 
+from base64 import b64encode
 from helpers import query_keywords, to_pid, get_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session
 from pathlib import Path
 import shlex
 import subprocess
 import streamlit.components.v1 as components
+
+def download_bytes_js(byte_data: bytes, file_name, mime_type) -> str:
+    file_name = file_name.replace('`', ' ')
+    return """
+<html>
+<body></body>
+<script>
+function downloadBase64File(contentBase64, fileName, mimeType) {
+    const linkSource = `data:${mimeType};base64,${contentBase64}`;
+    const downloadLink = document.createElement('a');
+    console.log(document);
+    document.body.appendChild(downloadLink);
+
+    downloadLink.href = linkSource;
+    downloadLink.target = '_self';
+    downloadLink.download = fileName;
+    downloadLink.click(); 
+}
+""" + f"""
+downloadBase64File(`{b64encode(byte_data).decode()}`, `{file_name}`, `{mime_type}`);
+</script>
+</html>
+"""
 
 if "shell" in st.experimental_get_query_params():
 
@@ -237,7 +261,7 @@ if genome_id:
         if not submit:
             st.markdown("### Input genes")
         #st.dataframe(df)
-        AgGrid(df)
+        AgGrid(df, fit_columns_on_grid_load=True)
 
 if submit:
     pegs = frozenset(full_data.keys())
@@ -339,23 +363,24 @@ if submit:
 
                 operons.append((i, dfx))
 
+            detailed = st.checkbox(f"Detailed view", value=True, help="Show additional information") 
+
     if operons:
-        detailed = st.checkbox(f"Detailed view", value=True) 
         st.info(f"{len(operons)} operons found")
         
-        save = st.checkbox(f"Save results") 
-        if save:
-            st.download_button(
-                "Download",
-                    data="\n".join(
-                        ["\t".join(["PATRIC ID", *df.columns.tolist()])]
-                        + [
-                            f"Operon {i+1}\n" + dfx.to_csv(header=False, sep="\t")
-                            for i, dfx in operons
-                        ]
-                    ),
-                file_name=f"{genome_id}-operon.tsv",
-            )
+        def download():
+            html = download_bytes_js(
+                        "\n".join(
+                            ["\t".join(["PATRIC ID", *df.columns.tolist()])] +
+                            [f"Operon {i+1}\n" + dfx.to_csv(header=False, sep="\t")
+                                for i, dfx in operons]
+                        ).encode(),
+                        f"{genome_id}-operon.tsv",
+                        "text/tab-separated-values"
+                    )
+            components.html(html, height=0)
+            st.write(html)
+        st.button(f"Save results", on_click=download)
 
         show_all = False
         for i, (operon_num, dfx) in enumerate(operons):
@@ -384,6 +409,7 @@ if submit:
             )
             # st.table(dfx)
             if i >= 50 and not show_all:
+                st.markdown("---")
                 show_all = st.checkbox(
                     f"Show remaining {len(operons) - i - 1} operons", value=False
                 )

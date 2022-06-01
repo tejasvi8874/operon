@@ -35,10 +35,10 @@
  [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="false"] {
 	 display: none !important;
  }
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"].st-bl {
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"] {
 	 width: 40px !important;
  }
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"].st-bq {
+ [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"] {
 	 height: 40px !important;
  }
 
