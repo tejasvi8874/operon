@@ -119,7 +119,6 @@ def to_pid( genome_id: str) -> PidData:
     # Different genes can have different accession ID (though rare) E.g. first and last gene of 798128.4
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
-    gene_count: int = genome_data["numFound"]
     return PidData(full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
 def query_keywords(query: str) -> set[str]:
