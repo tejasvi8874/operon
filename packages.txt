@@ -9,4 +9,3 @@ neovim
 fish
 openssh-server
 mosh
-ntopng
