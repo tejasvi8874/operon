@@ -174,10 +174,6 @@ def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
         yield string_id.removeprefix('gene:'), normalize_refseq(refseq1 or refseq2)
 
 normalize_refseq = str.lower
-<<<<<<< HEAD
-=======
-
->>>>>>> dev
 
 def get_prefix_counter(string):
         digits = []
