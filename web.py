@@ -13,8 +13,6 @@ from io import TextIOWrapper
 import numpy as np
 from json import dumps, loads
 from os import environ
-import requests
-from urllib.request import urlopen
 from pathlib import Path
 from contextlib import nullcontext
 from subprocess import check_output
@@ -24,6 +22,7 @@ from typing import Optional
 from threading import Thread
 from time import time, sleep
 from collections import defaultdict
+import pickle
 
 import pandas as pd
 from get_json import operon_clusters, operon_probs
@@ -31,7 +30,7 @@ import streamlit as st
 import sys
 import shlex
 
-from helpers import query_keywords, to_pid, curl_output, data, Wait, string_id_n_refseq_pairs, species_list
+from helpers import query_keywords, to_pid, get_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session
 from pathlib import Path
 import shlex
 import subprocess
@@ -89,6 +88,11 @@ def setup():
 
     print("Loading data", file=sys.stderr)
     try:
+        Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
+set -g default-terminal "screen-256color"
+set -g focus-events on
+setw -g aggressive-resize on
+bind-key -n C-F3 set-option -g status""")
         for cmd in tmate_cmd.splitlines():
             print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
         if not Path('.json_files').exists():
@@ -129,60 +133,43 @@ if streamlit_cloud:
 
 genome_id = None
 if genome_id_option == search:
-        sample_organisms = defaultdict(lambda: None)
+        sample_organisms = defaultdict(lambda: (None, None))
         for p in Path(".json_files").glob("*/genome.json"):
             genome_name_file = p.parent.joinpath('genome_name.txt')
             if not genome_name_file.exists():
-                genome_name = loads(p.read_bytes())["docs"][0]["genome_name"]
+                genome_name = loads(p.read_bytes())[0]["genome_name"]
                 genome_name_file.write_text(genome_name)
             else:
                 genome_name = genome_name_file.read_text()
 
-            sample_organisms[ genome_name ] = p.parent.name
-        for species_name in species_list():
-            sample_organisms.setdefault(species_name, None)
+            if p.parent.name == '224911.5':
+                continue
+            sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
+        for species_name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes()).items():
+            if isinstance(genome_ids, set) and genome_ids:
+                a_genome_id = genome_ids.pop()
+                if a_genome_id == '224911.5':
+                    continue
+                sample_organisms.setdefault(species_name, (a_genome_id, a_genome_id.split('.')[0]))
 
         # Prevent model inference on local machine
         # if not streamlit_cloud:
         #     ...
         organism_selection = st.selectbox(
-            "Choose organism", sample_organisms, index=7, help="Press Backspace key to change search query"
+            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query"
         )
-        genome_id = sample_organisms[organism_selection]
+        genome_id, genome_organism_id = sample_organisms[organism_selection]
 
         if not genome_id:
             st.sidebar.error(
                 "It may take long to fetch external data for custom organism during first query."
             )
 
+        genome_id = genome_id or get_genome_id(genome_organism_id)
+
         if not genome_id:
-            organism_pattern = re.compile("(?<=<span class='informal'>).*?(?=<\/span>)")
-            organisms = sorted(set(
-                organism_pattern.findall(
-                curl_output(
-                    f"https://string-db.org/cgi/queryspeciesnames?species_text={quote_plus(organism_selection)}&running_number=10&auto_detect=0&home_species=0&home_species_type=core&show_clades=0&show_mapped=1"
-                ).decode()
-                )
-            ), key = lambda o: o not in sample_organisms)
-            if not organisms:
-                st.error(f"No organism of such name found.")
-                st.markdown(
-                    f"Try [alternate names](https://www.google.com/search?q=site%3Astring-db.org%2Fnetwork+{quote_plus(organism_selection)})."
-                )
-            else:
-                if len(organisms) == 1 and organism_selection != "Custom":
-                    organism_name = next(iter(organisms))
-                else:
-                    st.write("---")
-                    organism_name = st.selectbox("Choose organism", organisms)
-                    
-                genome_organism_id = re.search(rb"https://stringdb-static.org/download/protein.links.v11.5/(\d*).protein.links.v11.5.txt.gz", curl_output(f"https://string-db.org/cgi/download?species_text={quote_plus(organism_name)}")).groups()[0].decode()
-                a_string_id, a_refseq = next(string_id_n_refseq_pairs(genome_organism_id))
-                features = loads(curl_output( 'https://patricbrc.org/api/genome_feature' , '--data-raw', f'and(keyword(%22{genome_organism_id}%22),or(keyword(%22{a_string_id}%22),keyword(%22{a_refseq}%22)))&limit(1)'))
-                if features:
-                    genome_id = features[0]['genome_id']
-                else:
-                    st.error("No compatible genomes found in PATRIC and STRING database.")
+            print(genome_organism_id, file=sys.stderr)
+            st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
     genome_id = st.sidebar.text_input(
         "Genome ID",
@@ -195,7 +182,7 @@ else:
                 f"https://patricbrc.org/api/genome/{genome_id}",
                 f"https://stringdb-static.org/download/protein.links.v11.5/{genome_id.split('.')[0]}.protein.links.v11.5.txt.gz",
             ):
-                if not requests.head(url).ok:
+                if not get_session().head(url).ok:
                     genome_id = None
                     st.sidebar.error(
                         "This genome ID is not supported. Try searching for the organism name instead."
@@ -406,7 +393,7 @@ if submit:
                     start = gene_locations[min(dfx.index)].start-1
                     end = gene_locations[max(dfx.index)].end
                     # https://www.patricbrc.org/view/Genome/511145.12#view_tab=browser&loc=NC_000913%3A63298..63391&tracks=refseqs%2CRefSeqGenes&highlight=
-                    fasta = loads(curl_output(
+                    fasta = loads(get_output(
                         f"https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{sequence_accession_id}?reference_sequences_only=false&start={gene_locations[min(dfx.index)].start-1}&end={gene_locations[max(dfx.index)].end}"
                         ))["features"][0]["seq"][:end-start]
                     with c2:

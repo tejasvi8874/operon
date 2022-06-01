@@ -1,6 +1,10 @@
+import requests
+from shutil import rmtree
+import sys
+import asyncio
+import aiohttp
 from functools import lru_cache
-from helpers import Wait
-from gzip import decompress
+from gzip import decompress, compress
 from shutil import move, rmtree
 from os import makedirs
 from pathlib import Path
@@ -9,11 +13,13 @@ from urllib.request import urlretrieve
 from glob import glob
 from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from json import loads, dump
-from helpers import data
+import threading
+from json import loads, dump, dumps
+from helpers import data, Wait, get_session
 
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
+
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     placeholder = st.empty()
@@ -23,32 +29,41 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     genome_data_changed = False
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
 
-    json_folder = f".json_files/{genome_id}/compare_region"
-    makedirs(json_folder, exist_ok=True)
-    if len(list(Path(json_folder).iterdir())) < len(gene_figure_name)-50:
-        with ThreadPoolExecutor(60, "JSONFetcher") as executor:
-            tasks =[]
-            for gene in gene_figure_name:
-                json_path = f"{json_folder}/{gene}.json"
-                if not Path(json_path).exists():
-                    args = [
-                        "curl",
-                        "--fail",
-                        "--max-time",
-                        "300",
-                        "--data-binary",
-                        '{"method": "SEED.compare_regions_for_peg", "params": ["'
-                        + gene
-                        + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}',
-                        "https://p3.theseed.org/services/compare_region",
-                        "--compressed",
-                        "-o",
-                        json_path,
-                    ]
-                    tasks.append(executor.submit(run, args))
-                    genome_data_changed = True
-            for i, future in enumerate(as_completed(tasks)):
-                progress_bar.progress(i/len(tasks)*0.50)
+    compare_region_json_path = Path(f".json_files/{genome_id}/compare_region.json.gz")
+
+    if compare_region_json_path.exists():
+        compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
+    else:
+        genome_data_changed = True
+        compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
+        compare_region_temp.mkdir(parents=True, exist_ok=True)
+
+        compare_region_data = []
+
+        compare_region_lock = threading.Lock()
+        def get_compare_region(fig_gene):
+            temp_json_path = compare_region_temp.joinpath(f'{fig_gene}.json')
+            if temp_json_path.exists():
+                compare_region_data.append(loads(temp_json_path.read_bytes()))
+                return
+            data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
+            resp = get_session().post('https://p3.theseed.org/services/compare_region', data=data)
+            if not resp.ok:
+                err_msg = f"Error with {fig_gene}. " + """Doing with requests though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + resp.content.decode()
+                print(err_msg, file=sys.stderr)
+                resp.raise_for_status()
+            temp_json_path.write_bytes(resp.content)
+            with compare_region_lock:
+                compare_region_data.append(resp.json())
+
+        with ThreadPoolExecutor(max_workers=100) as executor:
+            for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
+                r.result()
+                progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
+
+        assert len(compare_region_data) == len(gene_figure_name), "Error in compare region data fetch"
+        compare_region_json_path.write_bytes(compress(dumps(compare_region_data).encode()))
+        rmtree(compare_region_temp)
 
     progress_bar.progress(0.50)
 
@@ -60,7 +75,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
         Path(test_operons_path).unlink(missing_ok=True)
 
     if not Path(test_operons_path).exists() or len(list(Path(test_operons_path).glob('*.jpg'))) < len(pegs) - 50:
-        coords_filename = to_coordinates(json_folder, genome_id)
+        coords_filename = to_coordinates(compare_region_data, genome_id)
         print("Coordinates created")
 
         progress_bar.progress(0.55)
@@ -75,7 +90,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     with Wait('.main_predictor_lock'):
         return main(genome_id, progress_bar)
 
-# @lru_cache(128)
+@lru_cache(128)
 def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
     makedirs(f'.json_files/{genome_id}', exist_ok=True)
     predict_json = Path(f'.json_files/{genome_id}/operons.json')

@@ -1,9 +1,13 @@
 from heapq import heappush
+from itertools import chain, groupby, tee
+from threading import get_ident
+import threading
 from dataclasses import dataclass
 from typing import Optional, NamedTuple
 from string import ascii_letters
 import sys
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import requests
 import re
 from time import sleep
 from os import makedirs, mkdir
@@ -12,7 +16,7 @@ from gzip import decompress
 from urllib.request import urlretrieve
 from glob import glob
 from functools import lru_cache
-from subprocess import run, check_output
+from subprocess import run, check_output, DEVNULL
 from json import dump, dumps, load, loads
 from time import time
 from pid import PidFile
@@ -36,10 +40,17 @@ Wait = PidFile
 #                 raise ServerBusy
 #     def __exit__(self):
 #         self.pid_file.__exit__()
+#
+#@lru_cache(128)
+#def curl_output(*args: str)->bytes:
+#    return check_output(('curl', '--compressed', '-sS') + args)
 
 @lru_cache(128)
-def curl_output(*args: str)->bytes:
-    return check_output(('curl', '--compressed') + args)
+def get_output(url)->bytes:
+    resp = get_session().get(url)
+    resp.raise_for_status()
+    return resp.content
+
 
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
@@ -51,13 +62,12 @@ class PidData(NamedTuple):
     approximated_refseqs: Optional[list[str]]
     refseq_locus_tag_present: bool
 
-#@lru_cache(128)
+@lru_cache(128)
 def to_pid( genome_id: str) -> PidData:
     approximated_refseqs = []
 
     genome_organism_id = genome_id.split('.')[0]
-    genome_data = get_genome_data(genome_id)
-    feature_data = genome_data["docs"]
+    feature_data = get_genome_data(genome_id)
 
     gene_locations = {}
     full_data = {}
@@ -110,7 +120,6 @@ def to_pid( genome_id: str) -> PidData:
     # Different genes can have different accession ID (though rare) E.g. first and last gene of 798128.4
     # Prioritize ID present in first gene.
     sequence_accession_id = feature_data[0]["sequence_id"]
-    gene_count: int = genome_data["numFound"]
     return PidData(full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
 def query_keywords(query: str) -> set[str]:
@@ -127,38 +136,48 @@ class _Data:
 data = _Data()
 
 @lru_cache(100)
-def get_genome_data(genome_id: str):
+def get_genome_data(genome_id: str) -> list[dict]:
     genome_data_dir = f'.json_files/{genome_id}'
     genome_data_path = Path(f'{genome_data_dir}/genome.json')
     if genome_data_path.exists():
         genome_data = loads(genome_data_path.read_bytes())
     else:
-        genome_data = loads(curl_output(
-                "https://patricbrc.org/api/genome_feature/?&http_accept=application/solr+json&http_download=true",
-                "-H",
-                "Content-Type: application/x-www-form-urlencoded",
-                "--data-raw",
-                f"rql=eq%28genome_id%252C{genome_id}%29%2526and%28eq%28feature_type%252C%252522CDS%252522%29%252Ceq%28annotation%252C%252522PATRIC%252522%29%29%2526sort%28%252Bfeature_id%29%2526limit%2825000%29",
-                "--compressed",
-        ))["response"]
-        if genome_data["docs"]:
+        #E.g. curl 'https://patricbrc.org/api/genome_feature/?&http_accept=application/solr+json' -H 'Content-Type: application/x-www-form-urlencoded' --data-raw 'rql=eq%28genome_id%252C83332.12%29%2526and%28eq%28feature_type%252C%252522CDS%252522%29%252Ceq%28annotation%252C%252522PATRIC%252522%29%29%2526sort%28%252Bfeature_id%29%2526limit%2825000%29' --compressed
+        genome_data = get_session().post('https://patricbrc.org/api/genome_feature/',
+            data={ 'rql': f'eq(genome_id%2C{genome_id})%26and(eq(feature_type%2C%2522CDS%2522)%2Ceq(annotation%2C%2522PATRIC%2522))%26sort(%2Bfeature_id)%26limit(25000)' }
+        ).json()
+        if genome_data:
             makedirs(genome_data_dir, exist_ok=True)
             with open(genome_data_path, 'w') as f:
                 dump(genome_data, f)
             data.updated()
     return genome_data
 
-@lru_cache(32)
+sessions = defaultdict(lambda: requests.Session())
+session_lock = threading.Lock()
+def get_session():
+    with session_lock:
+        return sessions[get_ident()]
+
 def stringdb_aliases(genome_organism_id) -> str:
-    return decompress(curl_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+    path = Path(f'.json_files/alias/{genome_organism_id}.txt')
+    if path.exists():
+        return path.read_text()
+    aliases = decompress(get_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
+    #TODO: Handle saving?
+    #path.write_text(aliases)
+    return aliases
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
     for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
         string_id, refseq1, refseq2 = match.groups()
-        n_refseq = normalize_refseq(refseq1 or refseq2)
-        yield string_id, n_refseq
+        yield string_id.removeprefix('gene:'), normalize_refseq(refseq1 or refseq2)
 
 normalize_refseq = str.lower
+<<<<<<< HEAD
+=======
+
+>>>>>>> dev
 
 def get_prefix_counter(string):
         digits = []
@@ -177,11 +196,29 @@ def get_prefix_counter(string):
             raise Exception(f"Can't get prefix of {string}")
         return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))
 
-def species_list() -> list[str]:
-    species_list_path = Path(".json_files/species.txt")
+def species_list() -> list[tuple[str, str]]:
+    species_list_path = Path(".json_files/species.json")
     if species_list_path.is_file():
-        return species_list_path.read_text().splitlines()
+        return loads(species_list_path.read_bytes())
     # Considering only Bacteria for now. Archaea might work too.
-    species = sorted(re.findall(r"^\d+\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", curl_output("https://stringdb-static.org/download/species.v11.5.txt").decode(), re.MULTILINE))
-    species_list_path.write_text('\n'.join(species))
+    species = sorted(re.findall(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", get_output("https://stringdb-static.org/download/species.v11.5.txt").decode(), re.MULTILINE))
+    species_list_path.write_text(dumps(species))
     return species
+
+def pairwise(iterable):
+    # Python 3.10 onwards pairwise('ABCDEFG') --> AB BC CD DE EF FG
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+def get_genome_id(genome_organism_id) -> Optional[str]:
+    string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+    for _  in range(3):
+        # curl https://patricbrc.org/api/genome_feature --data-raw 'and(keyword(%2283332%22),keyword(%22gene%22))'
+        features = get_session().post(
+            'https://patricbrc.org/api/genome_feature',
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
+            ).json()
+        if features:
+            return features[0]["genome_id"]
