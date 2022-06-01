@@ -23,6 +23,8 @@ from threading import Thread
 from time import time, sleep
 from collections import defaultdict
 import pickle
+from st_aggrid import AgGrid
+
 
 import pandas as pd
 from get_json import operon_clusters, operon_probs
@@ -155,8 +157,10 @@ if genome_id_option == search:
         # Prevent model inference on local machine
         # if not streamlit_cloud:
         #     ...
+        def reset_submit():
+            st.session_state['submit_key'] = False
         organism_selection = st.selectbox(
-            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query"
+            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query", on_change=reset_submit
         )
         genome_id, genome_organism_id = sample_organisms[organism_selection]
 
@@ -204,7 +208,7 @@ if genome_id:
 st.sidebar.write("---")
 
 
-s_chk = st.sidebar.checkbox("Run")
+s_chk = st.sidebar.checkbox("Run", key='submit_key')
 submit = s_chk if genome_id else False
 
 def br(times=1):
@@ -232,7 +236,8 @@ if genome_id:
     with st.expander("Input genes") if submit else nullcontext():
         if not submit:
             st.markdown("### Input genes")
-        st.dataframe(df)
+        #st.dataframe(df)
+        AgGrid(df)
 
 if submit:
     pegs = frozenset(full_data.keys())

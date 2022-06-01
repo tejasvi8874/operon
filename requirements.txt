@@ -7,3 +7,4 @@ fastai==1.0.61
 pid
 pyinstrument
 numba
+streamlit-aggrid
