@@ -62,7 +62,7 @@ class PidData(NamedTuple):
     approximated_refseqs: Optional[list[str]]
     refseq_locus_tag_present: bool
 
-#@lru_cache(128)
+@lru_cache(128)
 def to_pid( genome_id: str) -> PidData:
     approximated_refseqs = []
 
