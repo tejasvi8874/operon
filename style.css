@@ -23,7 +23,7 @@
    line-height: 2;
    color: inherit;
    width: auto;
-   background-color: rgb(255, 200, 200);
+   background-color: rgb(200, 230, 200);
    border: 1px solid rgba(38, 39, 48, 0.2);
    height: 50px !important;
  }
@@ -107,7 +107,7 @@ header {
 	background: none !important;
 }
  img[alt="operon-finder"] {
-	 width: 30%;
+	 width: 40rem;
  }
  img[alt="iitg-logo"] {
 	 width: -webkit-fill-available;
