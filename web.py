@@ -154,9 +154,9 @@ st.write(
 )
 
 #st.title("Operon Finder")
-st.write('<br><img style="width=100%" src="https://i.imgur.com/JJLF0Iz.png">',unsafe_allow_html=True)
-
-st.markdown("Cluster genes into operons")
+#st.markdown("Cluster genes into operons")
+st.sidebar.markdown('![iitg-logo](https://i.imgur.com/Mw4iNjL.png)', unsafe_allow_html=True) 
+st.markdown('![operon-finder](https://i.imgur.com/JJLF0Iz.png)', unsafe_allow_html=True) 
 
 #st.sidebar.markdown("### Select genome")
 

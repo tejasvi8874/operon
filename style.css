@@ -106,3 +106,13 @@ header.[data-testid='stHeader'] {
 header {
 	background: none !important;
 }
+ img[alt="operon-finder"] {
+	 width: 30%;
+ }
+ img[alt="iitg-logo"] {
+	 width: -webkit-fill-available;
+ }
+
+ [data-testid="stSidebar"] div:nth-child(1) {
+	 padding: 0 !important;
+ }
