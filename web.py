@@ -153,15 +153,16 @@ st.write(
     unsafe_allow_html=True,
 )
 
-st.title("Operon Finder")
+#st.title("Operon Finder")
+#st.markdown("Cluster genes into operons")
+st.sidebar.markdown('![iitg-logo](https://i.imgur.com/Mw4iNjL.png)', unsafe_allow_html=True) 
+st.markdown('![operon-finder](https://i.imgur.com/JJLF0Iz.png)', unsafe_allow_html=True) 
 
-st.markdown("Cluster genes into operons")
-
-st.sidebar.markdown("### Select genome")
+#st.sidebar.markdown("### Select genome")
 
 manual = "Specify genome ID"
 search = "Search genomes"
-genome_id_option = st.sidebar.radio("", (search, manual))
+genome_id_option = st.sidebar.radio("Select genome", (search, manual))
 
 if streamlit_cloud:
     with Wait('.setup_lock'):

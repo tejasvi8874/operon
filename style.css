@@ -99,10 +99,20 @@ header.[data-testid='stHeader'] {
 	display: none;
 }
 
-stAppViewContainer > section:nth-child(2) [data-testid="stVerticalBlock"] .element-container:nth-child(1), stAppViewContainer > section [data-testid="stVerticalBlock"] .element-container:nth-child(2) {
+.appview-container section:nth-child(2) .element-container:nth-child(1), .appview-container section:nth-child(2) .element-container:nth-child(2) {
 	display: none !important;
 }
 
 header {
 	background: none !important;
 }
+ img[alt="operon-finder"] {
+	 width: 30%;
+ }
+ img[alt="iitg-logo"] {
+	 width: -webkit-fill-available;
+ }
+
+ [data-testid="stSidebar"] div:nth-child(1) {
+	 padding: 0 !important;
+ }
