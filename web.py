@@ -155,7 +155,7 @@ st.write(
 
 #st.title("Operon Finder")
 #st.markdown("Cluster genes into operons")
-st.sidebar.markdown('![iitg-logo](https://i.imgur.com/Mw4iNjL.png)', unsafe_allow_html=True) 
+st.sidebar.markdown('![iitg-logo](https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg)<center>Maintained by<br>**[Structural and Computational Biology Laboratory (SCBL)](https://www.iitg.ac.in/spkanaujia)**</center><hr><br>', unsafe_allow_html=True) 
 st.markdown('![operon-finder](https://i.imgur.com/JJLF0Iz.png)', unsafe_allow_html=True) 
 
 #st.sidebar.markdown("### Select genome")
@@ -236,7 +236,7 @@ else:
 if genome_id:
     # link_button(f"Genome details: {genome_id}", f"https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features")
     st.sidebar.markdown(
-        f"**Genome details:** [`{genome_id}`](https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features)"
+        f"**Genome details:** [`{genome_id}`](https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features)<br><br>", unsafe_allow_html=True
     )
 
 
