@@ -1,25 +1,4 @@
-#https://dev.to/dcodeyt/create-a-button-with-a-loading-spinner-in-html-css-1c0h
-# from pyinstrument import Profiler
-
-# profiler = Profiler()
-# profiler.start()
-
-# import cProfile, pstats, io
-# from pstats import SortKey
-# pr = cProfile.Profile()
-# pr.enable()
-
-import streamlit.components.v1 as components
-components.html(
-    """<script>
-/* Components live in their Iframe. Streamlit's context is the first parent.
-Find higher parents for each enclosing IFrames.
-Streamlit share adds another iframe on top. */
-const p = window.parent.parent;
-[p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));</script>
-""", height=0
-)
-
+#https://dev.to/dcodeyt/create-a-button-with-a-loading-spinner-in-html-css-1c0h # from pyinstrument import Profiler profiler = Profiler() profiler.start() import cProfile, pstats, io from pstats import SortKey pr = cProfile.Profile() pr.enable() import streamlit.components.v1 as components components.html( """<script> /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. */ const p = window.parent.parent; [p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));</script> """, height=0) 
 from gzip import decompress
 from io import TextIOWrapper
 import numpy as np
@@ -156,14 +135,19 @@ st.write(
 
 #st.title("Operon Finder")
 #st.markdown("Cluster genes into operons")
-st.sidebar.markdown('![iitg-logo](https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg)<center>Maintained by<br>**[Structural and Computational Biology Laboratory (SCBL)](https://www.iitg.ac.in/spkanaujia)**</center><hr><br>', unsafe_allow_html=True) 
-st.markdown('![operon-finder](https://i.imgur.com/JJLF0Iz.png)', unsafe_allow_html=True) 
+st.markdown('', unsafe_allow_html=True) 
+st.markdown('''
+    <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    <img alt="operon-logo" src="https://i.imgur.com/JJLF0Iz.png">
+    <img alt="lab-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    ''', unsafe_allow_html=True)
+st.markdown(')<center>Maintained by<br>**[Structural and Computational Biology Laboratory (SCBL)](https://www.iitg.ac.in/spkanaujia)**</center><hr><br>')
 
-#st.sidebar.markdown("### Select genome")
+#st.markdown("### Select genome")
 
 manual = "Specify genome ID"
 search = "Search genomes"
-genome_id_option = st.sidebar.radio("Select genome", (search, manual))
+genome_id_option = st.radio("Select genome", (search, manual))
 
 if streamlit_cloud:
     with Wait('.setup_lock'):
@@ -201,7 +185,7 @@ if genome_id_option == search:
         genome_id, genome_organism_id = sample_organisms[organism_selection]
 
         if not genome_id:
-            st.sidebar.error(
+            st.error(
                 "It may take long to fetch external data for custom organism during first query."
             )
 
@@ -211,7 +195,7 @@ if genome_id_option == search:
             print(genome_organism_id, file=sys.stderr)
             st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
-    genome_id = st.sidebar.text_input(
+    genome_id = st.text_input(
         "Genome ID",
         "262316.17",
         help="Must be available in PATRIC and STRING databases.",
@@ -224,27 +208,27 @@ else:
             ):
                 if not get_session().head(url).ok:
                     genome_id = None
-                    st.sidebar.error(
+                    st.error(
                         "This genome ID is not supported. Try searching for the organism name instead."
                     )
         except ConnectionError:
             print("Connection error")
     else:
         genome_id = None
-        st.sidebar.error("Invalid Genome ID format. E.g. 262316.17")
+        st.error("Invalid Genome ID format. E.g. 262316.17")
 
     
 if genome_id:
     # link_button(f"Genome details: {genome_id}", f"https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features")
-    st.sidebar.markdown(
+    st.markdown(
         f"**Genome details:** [`{genome_id}`](https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features)<br><br>", unsafe_allow_html=True
     )
 
 
-st.sidebar.write("---")
+st.write("---")
 
 
-s_chk = st.sidebar.checkbox("Run", key='submit_key')
+s_chk = st.checkbox("Run", key='submit_key')
 submit = s_chk if genome_id else False
 
 def br(times=1):
@@ -259,7 +243,7 @@ if genome_id:
         st.warning("The RefSeq approximations used for this genome might reduce the operon prediction accuracy due to absence of the corresponding annotations in the PATRIC database.")
     if not full_data:
         submit = False
-        st.sidebar.error(
+        st.error(
             "This genome is not supported. Try searching for the organism name instead."
         )
     df = pd.DataFrame.from_dict(
@@ -269,11 +253,10 @@ if genome_id:
     df = df.sort_index()
     # df.index.rename("PATRIC ID", inplace=True)
 
-    with st.expander("Input genes") if submit else nullcontext():
-        if not submit:
-            st.markdown("### Input genes")
-        #st.dataframe(df)
-        AgGrid(df, fit_columns_on_grid_load=True)
+    if submit:
+        with st.expander("Input genes"):
+            #st.dataframe(df)
+            AgGrid(df, fit_columns_on_grid_load=True)
 
 if submit:
     pegs = frozenset(full_data.keys())
