@@ -34,7 +34,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
         compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
     else:
         genome_data_changed = True
-        compare_region_data = get_compare_region_data(genome_id, pegs)
+        compare_region_data = get_compare_region_data(genome_id, pegs, progress_bar.progress)
 
     progress_bar.progress(0.50)
 
