@@ -15,15 +15,17 @@ from pathlib import Path
 data_path = Path('count_organisms.pkl')
 if data_path.exists():
     with open(data_path, 'rb') as f:
-        data = pickle.load(f)
+        full_data = pickle.load(f)
+        data = full_data['data']
 else:
     data = {}
+    full_data = {'data': data, 'errors': {}}
 count = len([v for v in data.values() if isinstance(v, set)])
 
 def f(genome_organism_id, organism_selection):
     #if data.get(organism_selection):
     if organism_selection in data:
-        data.setdefault("errors", {}).pop(organism_selection, None)
+        full_data.setdefault("errors", {}).pop(organism_selection, None)
         return
     try:
         genome_id = get_genome_id(genome_organism_id)
@@ -34,14 +36,14 @@ def f(genome_organism_id, organism_selection):
         else:
             data.setdefault(organism_selection, None)
             print("Couldn't find", organism_selection, genome_organism_id, file=sys.stderr)
-        data.setdefault("errors", {}).pop(organism_selection, None)
+        full_data.setdefault("errors", {}).pop(organism_selection, None)
     except Exception as e:
         print("exception", organism_selection, e)
-        data.setdefault("errors", {})[organism_selection] = str(e)
+        full_data.setdefault("errors", {})[organism_selection] = str(e)
 
 def saver():
     with open(data_path, 'wb') as file:
-        pickle.dump(data, file)
+        pickle.dump(full_data, file)
 def save_trigger():
     while True:
         Thread(target=saver, daemon=False).start()
@@ -59,5 +61,5 @@ else:
             r.result()
             print(round((i+1)/len(sl), 1), end='\r')
 
-print("errors", data.get("errors"))
+print("errors", full_data["errors"])
 print("Total count", count)

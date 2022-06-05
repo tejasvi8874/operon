@@ -118,14 +118,18 @@ header.[data-testid='stHeader'] {
 header {
 	background: none !important;
 }
+
  img[alt="operon-logo"] {
 	 height: 10em;
+	 margin: 0 auto;
  }
  img[alt="lab-logo"] {
 	 height: 10em;
+	 float: right;
  }
  img[alt="iitg-logo"] {
 	 height: 10em;
+	 float: left;
  }
 
  [data-testid="stSidebar"] div:nth-child(1) {
