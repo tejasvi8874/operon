@@ -20,4 +20,4 @@ genome_ids = [genome_id for _, cur_genome_ids in reversed(valid_organisms()) for
 with ThreadPoolExecutor(max_workers=5) as ex:
     for i, r in enumerate(as_completed([ex.submit(g, genome_id) for genome_id in genome_ids]))
         r.result()
-        print(round((i+1)/len(genome_ids), 1), end='\r')
+        print(round((i+1)/len(genome_ids), 1))
