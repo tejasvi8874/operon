@@ -20,7 +20,7 @@ from urllib.request import urlretrieve
 from glob import glob
 from functools import lru_cache
 from subprocess import run, check_output, DEVNULL
-from json import dump, dumps, load, loads
+from json import dump, dumps, load, loads, JSONDecodeError
 from time import time
 from pid import PidFile
 
@@ -217,6 +217,16 @@ def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
 def get_compare_region_json_path(genome_id):
     return Path(f".json_files/{genome_id}/compare_region.json.gz")
 
+def track_call(orig_func):
+    def track_call_wrapper(*a, **k):
+        try:
+            orig_func(*a, **k)
+        except:
+            print(f"{orig_func.__name__}({a}; {k})")
+            raise
+    return track_call_wrapper
+
+
 def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_json_path = get_compare_region_json_path(genome_id)
     if compare_region_json_path.exists():
@@ -227,14 +237,16 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
     compare_region_temp.mkdir(parents=True, exist_ok=True)
 
-    compare_region_data = []
 
-    compare_region_lock = threading.Lock()
+    @track_call
     def get_compare_region(fig_gene):
         temp_json_path = compare_region_temp.joinpath(f'{fig_gene}.json')
         if temp_json_path.exists():
-            compare_region_data.append(loads(temp_json_path.read_bytes()))
-            return
+            try:
+                return loads(temp_json_path.read_bytes())
+            except JSONDecodeError as e:
+                print('JSONDecodeError', fig_gene, e, temp_json_path.read_bytes(), 'Retrying', fig_gene)
+                temp_json_path.unlink()
         data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
         for _ in range(3):
             resp = get_session().post('https://p3.theseed.org/services/compare_region', data=data)
@@ -247,14 +259,16 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
                 sleep(5)
                 continue
             resp.raise_for_status()
+        else:
+            resp.raise_for_status()
 
         temp_json_path.write_bytes(resp.content)
-        with compare_region_lock:
-            compare_region_data.append(resp.json())
+        return resp.json()
 
+    compare_region_data = []
     with ThreadPoolExecutor(max_workers=25) as executor:
         for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
-            r.result()
+            compare_region_data.append(r.result())
             progress_clb and progress_clb((i+1)/len(gene_figure_name)*0.50)
 
     assert len(compare_region_data) == len(gene_figure_name), "Error in compare region data fetch"

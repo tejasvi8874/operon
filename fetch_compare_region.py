@@ -14,8 +14,6 @@ def g(genome_id):
 genome_ids = [genome_id for _, cur_genome_ids in reversed(valid_organisms()) for genome_id in cur_genome_ids]
 
 if __name__ == "__main__":
-    g('75922.3')
-    exit()
     for genome_id in genome_ids:
         compare_region_json_path = get_compare_region_json_path(genome_id)
         if not compare_region_json_path.exists():
