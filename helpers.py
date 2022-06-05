@@ -225,7 +225,7 @@ def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
 def get_compare_region_json_path(genome_id):
     return Path(f".json_files/{genome_id}/compare_region.json.gz")
 
-def get_compare_region_data(genome_id, pegs, progress_clb=lambda: None):
+def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_json_path = get_compare_region_json_path(genome_id)
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
     compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
@@ -259,7 +259,7 @@ def get_compare_region_data(genome_id, pegs, progress_clb=lambda: None):
     with ThreadPoolExecutor(max_workers=25) as executor:
         for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
             r.result()
-            progress_clb((i+1)/len(gene_figure_name)*0.50)
+            progress_clb and progress_clb((i+1)/len(gene_figure_name)*0.50)
 
     assert len(compare_region_data) == len(gene_figure_name), "Error in compare region data fetch"
     compare_region_json_path.write_bytes(compress(dumps(compare_region_data).encode()))
