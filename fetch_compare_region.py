@@ -1,5 +1,5 @@
 from get_json import get_compare_region_data
-from helpers import valid_organisms
+from helpers import valid_organisms, get_genome_data
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def log(*a):
@@ -19,6 +19,6 @@ def g(genome_id):
 genome_ids = [genome_id for _, cur_genome_ids in reversed(valid_organisms()) for genome_id in cur_genome_ids]
 
 with ThreadPoolExecutor(max_workers=5) as ex:
-    for i, r in enumerate(as_completed([ex.submit(g, genome_id) for genome_id in genome_ids]))
+    for i, r in enumerate(as_completed([ex.submit(g, genome_id) for genome_id in genome_ids])):
         r.result()
         print(round((i+1)/len(genome_ids), 1))

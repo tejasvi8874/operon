@@ -1,4 +1,5 @@
 from heapq import heappush
+import pickle
 from itertools import chain, groupby, tee
 from threading import get_ident
 import threading
@@ -220,4 +221,4 @@ def get_genome_id(genome_organism_id) -> Optional[str]:
             return features[0]["genome_id"]
 
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
-    return [name, genome_ids for name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes())['data'].items() if genome_ids]
+    return [(name, genome_ids) for name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes())['data'].items() if genome_ids]
