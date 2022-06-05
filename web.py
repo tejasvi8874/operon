@@ -156,10 +156,10 @@ if streamlit_cloud:
 genome_id = None
 if genome_id_option == search:
         sample_organisms = defaultdict(lambda: (None, None))
-        for p in Path(".json_files").glob("*/genome.json"):
+        for p in Path(".json_files").glob("*/compare_region.json.gz"):
             genome_name_file = p.parent.joinpath('genome_name.txt')
             if not genome_name_file.exists():
-                genome_name = loads(p.read_bytes())[0]["genome_name"]
+                genome_name = loads(p.parent.joinpath('genome.json').read_bytes())[0]["genome_name"]
                 genome_name_file.write_text(genome_name)
             else:
                 genome_name = genome_name_file.read_text()

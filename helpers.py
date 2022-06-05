@@ -1,9 +1,9 @@
 from heapq import heappush
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pickle
 from itertools import chain, groupby, tee
 from threading import get_ident
 import threading
-from dataclasses import dataclass
 from typing import Optional, NamedTuple, Iterator
 from string import ascii_letters
 import sys
@@ -21,8 +21,6 @@ from subprocess import run, check_output, DEVNULL
 from json import dump, dumps, load, loads
 from time import time
 from pid import PidFile
-
-from attr import dataclass
 
 
 class ServerBusy(Exception):
@@ -222,3 +220,49 @@ def get_genome_id(genome_organism_id) -> Optional[str]:
 
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
     return [(name, genome_ids) for name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes())['data'].items() if genome_ids]
+
+
+def get_compare_region_json_path(genome_id):
+    return Path(f".json_files/{genome_id}/compare_region.json.gz")
+
+def get_compare_region_data(genome_id, pegs):
+    compare_region_json_path = get_compare_region_json_path(genome_id)
+    gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
+    compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
+    compare_region_temp.mkdir(parents=True, exist_ok=True)
+
+    compare_region_data = []
+
+    compare_region_lock = threading.Lock()
+    def get_compare_region(fig_gene):
+        temp_json_path = compare_region_temp.joinpath(f'{fig_gene}.json')
+        if temp_json_path.exists():
+            compare_region_data.append(loads(temp_json_path.read_bytes()))
+            return
+        data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
+        for _ in range(3):
+            resp = get_session().post('https://p3.theseed.org/services/compare_region', data=data)
+            if resp.ok:
+                break
+            msg = resp.content.decode()
+            err_msg = f"Error with {fig_gene}. " + """Doing with requests though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + msg
+            print(err_msg, file=sys.stderr)
+            if '502 Bad Gateway' in msg:
+                sleep(5)
+                continue
+            resp.raise_for_status()
+
+        temp_json_path.write_bytes(resp.content)
+        with compare_region_lock:
+            compare_region_data.append(resp.json())
+
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
+            r.result()
+            progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
+
+    assert len(compare_region_data) == len(gene_figure_name), "Error in compare region data fetch"
+    compare_region_json_path.write_bytes(compress(dumps(compare_region_data).encode()))
+    rmtree(compare_region_temp)
+
+    return compare_region_data

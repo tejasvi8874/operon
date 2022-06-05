@@ -2,7 +2,6 @@ import requests
 from shutil import rmtree
 import sys
 import asyncio
-import aiohttp
 from functools import lru_cache
 from gzip import decompress, compress
 from shutil import move, rmtree
@@ -15,46 +14,12 @@ from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import data, Wait, get_session
+from helpers import data, Wait, get_session, get_compare_region_data, get_compare_region_json_path
 
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
 
 
-
-def get_compare_region_data(pegs):
-    gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
-    compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
-    compare_region_temp.mkdir(parents=True, exist_ok=True)
-
-    compare_region_data = []
-
-    compare_region_lock = threading.Lock()
-    def get_compare_region(fig_gene):
-        temp_json_path = compare_region_temp.joinpath(f'{fig_gene}.json')
-        if temp_json_path.exists():
-            compare_region_data.append(loads(temp_json_path.read_bytes()))
-            return
-        data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
-        resp = get_session().post('https://p3.theseed.org/services/compare_region', data=data)
-        if not resp.ok:
-            err_msg = f"Error with {fig_gene}. " + """Doing with requests though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + resp.content.decode()
-            print(err_msg, file=sys.stderr)
-            resp.raise_for_status()
-        temp_json_path.write_bytes(resp.content)
-        with compare_region_lock:
-            compare_region_data.append(resp.json())
-
-    with ThreadPoolExecutor(max_workers=500) as executor:
-        for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
-            r.result()
-            progress_bar.progress((i+1)/len(gene_figure_name)*0.50)
-
-    assert len(compare_region_data) == len(gene_figure_name), "Error in compare region data fetch"
-    compare_region_json_path.write_bytes(compress(dumps(compare_region_data).encode()))
-    rmtree(compare_region_temp)
-
-    return compare_region_data
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     placeholder = st.empty()
@@ -63,13 +28,13 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     progress_bar = st.progress(0.05)
     genome_data_changed = False
 
-    compare_region_json_path = Path(f".json_files/{genome_id}/compare_region.json.gz")
 
+    compare_region_json_path = get_compare_region_json_path(genome_id)
     if compare_region_json_path.exists():
         compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
     else:
         genome_data_changed = True
-        compare_region_data = get_compare_region_data(pegs)
+        compare_region_data = get_compare_region_data(genome_id, pegs)
 
     progress_bar.progress(0.50)
 
