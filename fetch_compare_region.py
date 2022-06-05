@@ -3,6 +3,7 @@ from helpers import valid_organisms
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def log(*a):
+    print(*a)
     with open('compare_region.log', 'a') as f:
         print(*a, file=f)
 
