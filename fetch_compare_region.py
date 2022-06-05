@@ -1,4 +1,4 @@
-from helpers import valid_organisms, get_genome_data, get_compare_region_data
+from helpers import valid_organisms, get_genome_data, get_compare_region_data, get_compare_region_json_path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def g(genome_id):
@@ -13,5 +13,10 @@ def g(genome_id):
 
 genome_ids = [genome_id for _, cur_genome_ids in reversed(valid_organisms()) for genome_id in cur_genome_ids]
 
-for genome_id in genome_ids:
-    g(genome_id)
+if __name__ == "__main__":
+    g('75922.3')
+    exit()
+    for genome_id in genome_ids:
+        compare_region_json_path = get_compare_region_json_path(genome_id)
+        if not compare_region_json_path.exists():
+            g(genome_id)

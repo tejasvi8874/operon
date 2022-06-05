@@ -1,4 +1,6 @@
 from heapq import heappush
+from shutil import rmtree
+from gzip import compress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pickle
 from itertools import chain, groupby, tee
@@ -125,15 +127,6 @@ def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}
 
 
-class _Data:
-    def __init__(self):
-        self.last_update = time()
-        self.changed = False
-    def updated(self, changed = True):
-        self.last_update = time()
-        self.changed = changed
-data = _Data()
-
 @lru_cache(100)
 def get_genome_data(genome_id: str) -> list[dict]:
     genome_data_dir = f'.json_files/{genome_id}'
@@ -149,7 +142,6 @@ def get_genome_data(genome_id: str) -> list[dict]:
             makedirs(genome_data_dir, exist_ok=True)
             with open(genome_data_path, 'w') as f:
                 dump(genome_data, f)
-            data.updated()
     return genome_data
 
 sessions = defaultdict(lambda: requests.Session())
@@ -227,6 +219,10 @@ def get_compare_region_json_path(genome_id):
 
 def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_json_path = get_compare_region_json_path(genome_id)
+    if compare_region_json_path.exists():
+        compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
+        return
+
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
     compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')
     compare_region_temp.mkdir(parents=True, exist_ok=True)

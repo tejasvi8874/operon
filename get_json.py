@@ -1,5 +1,4 @@
 import requests
-from shutil import rmtree
 import sys
 import asyncio
 from functools import lru_cache
@@ -14,7 +13,7 @@ from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import data, Wait, get_session, get_compare_region_data, get_compare_region_json_path
+from helpers import Wait, get_session, get_compare_region_data, get_compare_region_json_path
 
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
@@ -26,24 +25,17 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     placeholder.info("Please wait while we fetch the data and predict operons. It might take upto 15 minutes.")
 
     progress_bar = st.progress(0.05)
-    genome_data_changed = False
-
 
     compare_region_json_path = get_compare_region_json_path(genome_id)
-    if compare_region_json_path.exists():
-        compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
-    else:
-        genome_data_changed = True
-        compare_region_data = get_compare_region_data(genome_id, pegs, progress_bar.progress)
+    if not compare_region_json_path.exists():
+        Path(test_operons_path).unlink(missing_ok=True)
+    compare_region_data = get_compare_region_data(genome_id, pegs, progress_bar.progress)
 
     progress_bar.progress(0.50)
 
     from JsonToCoordinates import to_coordinates
 
     test_operons_path = f"images_custom/test_operons/{genome_id}"
-    if genome_data_changed:
-        data.updated()
-        Path(test_operons_path).unlink(missing_ok=True)
 
     if not Path(test_operons_path).exists() or len(list(Path(test_operons_path).glob('*.jpg'))) < len(pegs) - 50:
         coords_filename = to_coordinates(compare_region_data, genome_id)
@@ -72,7 +64,6 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
         operons = get_operons(genome_id, pegs)
         with open(predict_json, 'w') as f:
             dump(operons, f)
-        data.updated()
     # JSON keys can only be strings
     return {int(gene_id): prob for gene_id, prob in operons.items()}
 
