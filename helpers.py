@@ -221,8 +221,8 @@ def track_call(orig_func):
     def track_call_wrapper(*a, **k):
         try:
             orig_func(*a, **k)
-        except:
-            print(f"{orig_func.__name__}({a}; {k})")
+        except Exception as e:
+            print(e, f"{orig_func.__name__}({a}; {k})")
             raise
     return track_call_wrapper
 
@@ -268,6 +268,8 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_data = []
     with ThreadPoolExecutor(max_workers=25) as executor:
         for i, r in enumerate(as_completed([executor.submit(get_compare_region, g) for g in gene_figure_name])):
+            if r.exception():
+                raise r.exception()
             compare_region_data.append(r.result())
             progress_clb and progress_clb((i+1)/len(gene_figure_name)*0.50)
 
