@@ -365,7 +365,7 @@ if submit:
 
                 # TODO: find "next" instead of pid+1 since some pid missing
                 for pid in dfx.index:
-                    dfx.loc[pid, "Intergenic distance"] = gene_locations[pid+1].start - gene_locations[pid].end if pid+1 in dfx.index else '-'
+                    dfx.loc[pid, "Intergenic distance"] = gene_locations[pid+1].start - gene_locations[pid].end - 1 if pid+1 in dfx.index else '-'
 
                 operons.append((i, dfx))
 
