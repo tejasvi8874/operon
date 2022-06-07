@@ -1,4 +1,5 @@
 import requests
+from threading import Thread
 from email_validator import validate_email, EmailNotValidError
 import sys
 import asyncio
@@ -39,10 +40,15 @@ class LruDict:
         self.d = {}
     def __getitem__(self, key):
         self.d[key] = self.d.pop(key)
+        return self.d[key]
     def __setitem__(self, key, val):
         if len(self.d) >= self.size:
             del self.d[next(iter(self.d))]
         self.d[key] = val
+    def __contains__(self, key):
+        return key in self.d
+    def __iter__(self):
+        return iter(self.d)
 
 
 operon_probs_cache = LruDict(128)
@@ -68,7 +74,7 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 progress_bar.progress(float(progress_file.read_text()))
                 sleep(1)
 
-            if predict_json.exists()
+            if predict_json.exists():
                 if email:
                     sent_emails = st.session.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
@@ -81,7 +87,8 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
 
         operons = loads(predict_json.read_bytes())
         operon_probs_cache[genome_id] = {int(gene_id): prob for gene_id, prob in operons.items()}
-    return operon_probs_cache[genome_id]
+    probs = operon_probs_cache[genome_id]
+    return probs
 
 class LoggedThread(Thread):
     def __init__(self, f, *a, **k):

@@ -23,7 +23,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, data, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session
+from helpers import query_keywords, to_pid, get_output, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms
 from pathlib import Path
 import shlex
 import subprocess
@@ -166,7 +166,7 @@ if genome_id_option == search:
             if p.parent.name == '224911.5':
                 continue
             sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
-        for species_name, genome_ids in valid_organisms().items():
+        for species_name, genome_ids in valid_organisms():
             a_genome_id = genome_ids.pop()
             if a_genome_id == '224911.5':
                 continue
