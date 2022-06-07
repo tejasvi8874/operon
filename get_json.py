@@ -1,4 +1,6 @@
+from time import sleep
 import requests
+import traceback
 from threading import Thread
 from email_validator import validate_email, EmailNotValidError
 import sys
@@ -6,7 +8,7 @@ import asyncio
 from functools import lru_cache
 from gzip import decompress, compress
 from shutil import move, rmtree
-from os import makedirs
+from os import makedirs, environ
 from pathlib import Path
 from typing import Optional
 from urllib.request import urlretrieve
@@ -15,7 +17,8 @@ from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import Wait, get_session, get_compare_region_data, get_compare_region_json_path, send_alert
+from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email
+from pid import PidFile, PidFileError
 
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
@@ -29,7 +32,7 @@ def get_operon_path(genome_id):
 
 def operons_in_progress(genome_id):
     try:
-        with Wait('.lock_'+genome_id):
+        with PidFile('.lock_'+genome_id):
             return False
     except PidFileError:
         return True
@@ -57,21 +60,30 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
         makedirs(f'.json_files/{genome_id}', exist_ok=True)
         predict_json = get_operon_path(genome_id)
         if not predict_json.exists():
-            placeholder = st.empty()
-            placeholder.info(f"Please wait while we fetch the data and predict operons. It might take upto {round(len(pegs)/5/60)} minutes.")
-            email = placeholder.input("Get email alert on completion", value=st.session.get("email", ""), placeholder='Enter email address', help="Make sure to check spam/junk folder. Email will be recieved from spklab.iitg@gmail.com").strip()
+            placeholders = []
+            stpl = lambda: placeholders.append(st.empty()) or placeholders[-1]
+            stpl().info(f"Please wait while we fetch the data and predict operons. It might take upto {round(len(pegs)/5/60)} minutes.")
+            email = stpl().text_input("Get email alert on completion", value=st.session_state.get("email", ""), placeholder='Email address', help="Make sure to check spam/junk folder. Email will be recieved from spklab.iitg@gmail.com").strip()
             if email:
                 try:
-                    email = email_validator(email).email
+                    email = validate_email(email).email
                 except EmailNotValidError as e:
                     placeholder.error(f"Invalid email address\n\n{e}")
-            progress_bar = placeholder.progress(0.05)
+            progress_bar = stpl().progress(0)
             progress_file = get_operon_progress_path(genome_id)
 
             if not operons_in_progress(genome_id):
                 get_operons_background(genome_id, pegs)
             while not predict_json.exists() and operons_in_progress(genome_id):
-                progress_bar.progress(float(progress_file.read_text()))
+                for _ in range(10):
+                    try:
+                        progress = float(progress_file.read_text())
+                        break
+                    except ValueError:
+                        sleep(0.1)
+                else:
+                    continue
+                progress_bar.progress(progress)
                 sleep(1)
 
             if predict_json.exists():
@@ -79,35 +91,35 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                     sent_emails = st.session.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
                         sent_emails.add(email, genome_id)
-                        Thread(send_alert, email, genome_id).start()
+                        send_alert_background(email, genome_id, None)
             else:
                 st.error(f"Some error occured, please retry and report the genome id to {source_email}")
                 raise Exception(f"Error with {genome_id=}")
-            placeholder.empty()
+            for p in placeholders:
+                p.empty()
 
         operons = loads(predict_json.read_bytes())
         operon_probs_cache[genome_id] = {int(gene_id): prob for gene_id, prob in operons.items()}
     probs = operon_probs_cache[genome_id]
     return probs
 
-class LoggedThread(Thread):
-    def __init__(self, f, *a, **k):
-        def wrap_f(*fa, **fk):
-            try:
-                f(*fa, **fk)
-            except:
-                err_msg = traceback.format_exc()
-                print(err_msg)
-                if environ.get('PROD'):
-                    send_alert_background(error_email, genome_id, err_msg)
-                raise
-        super().__init__(wrap_f, *a, **k)
+def logged_thread(*, target, args):
+    def wrap_target(*a):
+        try:
+            target(*a)
+        except:
+            err_msg = traceback.format_exc()
+            print(err_msg)
+            if environ.get('PROD'):
+                send_alert_background(error_email, genome_id, err_msg)
+            raise
+    Thread(target=wrap_target, args=args).start()
 
 def get_operons_background(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    LoggedThread(get_operons, genome_id, pegs).start()
+    logged_thread(target=get_operons, args=(genome_id, pegs))
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    with Wait('.lock_'+genome_id):
+    with PidFile('.lock_'+genome_id):
         predict_json = get_operon_path(genome_id)
         if predict_json.exists():
             return loads(predict_json.read_bytes())
@@ -118,29 +130,29 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
         progress_writer(0.0)
 
         compare_region_json_path = get_compare_region_json_path(genome_id)
+        test_operons_path = Path(f"images_custom/test_operons/{genome_id}")
         if not compare_region_json_path.exists():
-            Path(test_operons_path).unlink(missing_ok=True)
+            rmtree(test_operons_path, ignore_errors=True)
         compare_region_data = get_compare_region_data(genome_id, pegs, progress_writer)
 
         progress_writer(0.50)
 
         from JsonToCoordinates import to_coordinates
 
-        test_operons_path = f"images_custom/test_operons/{genome_id}"
 
-        if not Path(test_operons_path).exists() or len(list(Path(test_operons_path).glob('*.jpg'))) < len(pegs) - 50:
+        if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
             coords_filename = to_coordinates(compare_region_data, genome_id)
             print("Coordinates created")
 
             progress_writer(0.55)
             makedirs(test_operons_path, exist_ok=True)
-            run(["java", "CoordsToJpg.java", coords_filename, test_operons_path])
+            run(["java", "CoordsToJpg.java", coords_filename, test_operons_path.as_posix()])
             Path(coords_filename).unlink()
             progress_writer(0.65)
 
 
         from test import main
-        with Wait('.main_predictor_lock'):
+        with PidFile('.main_predictor_lock'):
             operons = main(genome_id, progress_writer)
 
         progress_writer(1.0)

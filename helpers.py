@@ -22,7 +22,6 @@ from functools import lru_cache
 from subprocess import run, check_output, DEVNULL
 from json import dump, dumps, load, loads, JSONDecodeError
 from time import time
-from pid import PidFile
 import smtplib
 import codecs
 from os import environ
@@ -33,23 +32,6 @@ from email.message import EmailMessage
 class ServerBusy(Exception):
     pass
 
-Wait = PidFile
-# class Wait:
-#     def __init__(self, lock_id: str):
-#         self.pid_file = PidFile(lock_id)
-#     def __enter__(self):
-#         while True:
-#             try:
-#                 self.pid_file.__enter__()
-#             except PidFileError:
-#                 # sleep(5)
-#                 raise ServerBusy
-#     def __exit__(self):
-#         self.pid_file.__exit__()
-#
-#@lru_cache(128)
-#def curl_output(*args: str)->bytes:
-#    return check_output(('curl', '--compressed', '-sS') + args)
 
 @lru_cache(128)
 def get_output(url)->bytes:
@@ -225,7 +207,7 @@ def get_compare_region_json_path(genome_id):
 def track_call(orig_func):
     def track_call_wrapper(*a, **k):
         try:
-            orig_func(*a, **k)
+            return orig_func(*a, **k)
         except Exception as e:
             print(e, f"{orig_func.__name__}({a}; {k})")
             raise
@@ -235,8 +217,7 @@ def track_call(orig_func):
 def get_compare_region_data(genome_id, pegs, progress_clb=None):
     compare_region_json_path = get_compare_region_json_path(genome_id)
     if compare_region_json_path.exists():
-        compare_region_data = loads(decompress(compare_region_json_path.read_bytes()))
-        return
+        return loads(decompress(compare_region_json_path.read_bytes()))
 
     gene_figure_name = {f"fig|{genome_id}.peg.{i}" for i in pegs}
     compare_region_temp = compare_region_json_path.parent.joinpath('compare_region')

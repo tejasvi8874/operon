@@ -1,4 +1,22 @@
-#https://dev.to/dcodeyt/create-a-button-with-a-loading-spinner-in-html-css-1c0h # from pyinstrument import Profiler profiler = Profiler() profiler.start() import cProfile, pstats, io from pstats import SortKey pr = cProfile.Profile() pr.enable() import streamlit.components.v1 as components components.html( """<script> /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. */ const p = window.parent.parent; [p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));</script> """, height=0) 
+#https://dev.to/dcodeyt/create-a-button-with-a-loading-spinner-in-html-css-1c0h 
+#from pyinstrument import Profiler 
+#profiler = Profiler() 
+#profiler.start() 
+#import cProfile, pstats, io 
+#from pstats import SortKey 
+#pr = cProfile.Profile()
+#pr.enable() 
+
+import streamlit.components.v1 as components 
+components.html( """
+    <script>
+        /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. True page lives on url "https://apps.streamlitusercontent.com/**/*.py/+/" */
+
+        const p = window.parent;
+        [p, p.parent].forEach(p=>p.postMessage("appLoaded", "*"));
+    </script>""", height=0) 
+
+
 from gzip import decompress
 from io import TextIOWrapper
 import numpy as np
@@ -14,6 +32,7 @@ from threading import Thread
 from time import time, sleep
 from collections import defaultdict
 import pickle
+from pid import PidFile, PidFileError
 
 
 import pandas as pd
@@ -23,7 +42,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, Wait, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms
+from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms
 from pathlib import Path
 import shlex
 import subprocess
@@ -134,23 +153,27 @@ st.write(
 
 #st.title("Operon Finder")
 #st.markdown("Cluster genes into operons")
-st.markdown('', unsafe_allow_html=True) 
 st.markdown('''
-    <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    <br>
+    <img alt="lab-logo" src="https://i.imgur.com/j34Ee87.jpg">
     <img alt="operon-logo" src="https://i.imgur.com/JJLF0Iz.png">
-    <img alt="lab-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    <hr>
     ''', unsafe_allow_html=True)
-st.markdown(')<center>Maintained by<br>**[Structural and Computational Biology Laboratory (SCBL)](https://www.iitg.ac.in/spkanaujia)**</center><hr><br>')
-
-#st.markdown("### Select genome")
 
 manual = "Specify genome ID"
 search = "Search genomes"
 genome_id_option = st.radio("Select genome", (search, manual))
 
 if streamlit_cloud:
-    with Wait('.setup_lock'):
-        setup()
+    while True:
+        try:
+            with PidFile('.setup_lock'):
+                setup()
+            break
+        except PidFileError:
+            sleep(0.1)
+
 
 genome_id = None
 if genome_id_option == search:
@@ -219,11 +242,8 @@ else:
 if genome_id:
     # link_button(f"Genome details: {genome_id}", f"https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features")
     st.markdown(
-        f"**Genome details:** [`{genome_id}`](https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features)<br><br>", unsafe_allow_html=True
+        f"**Genome details:** [`{genome_id}`](https://www.patricbrc.org/view/Genome/{genome_id}#view_tab=features)<br><br><hr>", unsafe_allow_html=True
     )
-
-
-st.write("---")
 
 
 s_chk = st.checkbox("Run", key='submit_key')
@@ -422,6 +442,17 @@ if submit:
                     components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
     else:
         st.error(f"No matching clusters found")
+
+st.markdown('''
+<center><br><hr>
+Developed and maintained by:<br>
+<b>
+Tejasvi Singh Tomar, Pratik Das Gupta, and Shankar Prasad Kanaujia<br>
+<a href="(https://www.iitg.ac.in/spkanaujia)">Structural and Computational Biology Laboratory (SCBL)</a></br>
+Indian Institute of Technology - Guwahati<br>
+Copyright Ⓒ 2022 Operon Finder
+</b>
+</center>''', unsafe_allow_html=True)
 
 # pr.disable()
 # s = io.StringIO()
