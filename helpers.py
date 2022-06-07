@@ -23,6 +23,11 @@ from subprocess import run, check_output, DEVNULL
 from json import dump, dumps, load, loads, JSONDecodeError
 from time import time
 from pid import PidFile
+import smtplib
+import codecs
+from os import environ
+from email.message import EmailMessage
+
 
 
 class ServerBusy(Exception):
@@ -278,3 +283,23 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
     rmtree(compare_region_temp)
 
     return compare_region_data
+
+source_email = codecs.encode('fcxyno.vvgt@tznvy.pbz', 'rot_13')
+error_email = codecs.encode('gfgbzne@bhgybbx.pbz', 'rot_13')
+
+def send_alert_background(dest_email, genome_id, err_msg):
+    LoggedThread(send_alert, dest_email, genome_id, err_msg).start()
+def send_alert(dest_email, genome_id, err_msg):
+    msg = EmailMessage()
+    msg['From'] = source_email
+    msg['Subject'] = 'Operon Finder task completed'
+    msg['To'] = ', '.join([dest_email,])
+            
+    msg.set_content(f'Error with {genome_id}' if err_msg else f'The operon predictions for the genome id: {genome_id} are available.\n\nRegards,\nSCBL - IIT Guwahati')
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login(source_email, environ.get('EMAIL_PASSWORD'))
+        smtp.send_message(msg)
+
+    print("Sent!")
+

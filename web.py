@@ -14,7 +14,6 @@ from threading import Thread
 from time import time, sleep
 from collections import defaultdict
 import pickle
-from st_aggrid import AgGrid
 
 
 import pandas as pd
@@ -254,13 +253,11 @@ if genome_id:
 
     if submit:
         with st.expander("Input genes"):
-            #st.dataframe(df)
-            AgGrid(df, fit_columns_on_grid_load=True)
+            st.dataframe(df)
 
 if submit:
     pegs = frozenset(full_data.keys())
-    with Wait('.lock_'+genome_id):
-        probs = operon_probs(genome_id, pegs)
+    probs = operon_probs(genome_id, pegs)
 
     operons = []
     with st.expander("Filter operons", True):
