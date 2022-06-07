@@ -71,6 +71,8 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                     placeholder.error(f"Invalid email address\n\n{e}")
             progress_bar = stpl().progress(0)
             progress_file = get_operon_progress_path(genome_id)
+            if not progress_file.exists():
+                progress_file.write_text(str(0.0))
 
             if not operons_in_progress(genome_id):
                 get_operons_background(genome_id, pegs)
@@ -116,7 +118,7 @@ def logged_thread(*, target, args):
     Thread(target=wrap_target, args=args).start()
 
 def get_operons_background(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    logged_thread(target=get_operons, args=(genome_id, pegs))
+    logged_thread(target=get_operons, args=(genome_id, pegs), name='operonbackground')
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     with PidFile('.lock_'+genome_id):
@@ -157,7 +159,7 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
         progress_writer(1.0)
 
-        predict_json.write_bytes(dumps(operons))
+        predict_json.write_text(dumps(operons))
         return operons
 
 def operon_clusters(genome_id: str, pegs: frozenset[int], min_prob: float, probs: dict[int, float]) -> list[set[int]]:

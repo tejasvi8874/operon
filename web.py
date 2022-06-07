@@ -15,7 +15,7 @@ components.html( """
         const p = window.parent;
         [p, p.parent, p.parent.parent].forEach(
             p=>{
-                console.log([p, "appLoaded"]);
+                //console.log([p, "appLoaded"]);
                 p.postMessage("appLoaded", "*");
             }
         );
