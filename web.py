@@ -101,23 +101,18 @@ tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d 
 def setup():
     def data_commit():
         while True:
-            time_left = (data.last_update + 60*5) - time()
-            if time_left <= 0:
-                if data.changed:
-                    try:
-                        subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
-                        try:
-                            subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
-                        except subprocess.CalledProcessError as e:
-                            if e.returncode != 1:
-                                raise
-                        subprocess.check_call(["git", "push"], cwd=".json_files")
-                    except subprocess.CalledProcessError as e:
-                        print(f"{e.stdout}{e.stderr}", file=sys.stderr)
+            try:
+                subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
+                try:
+                    subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
+                except subprocess.CalledProcessError as e:
+                    if e.returncode != 1:
                         raise
-                data.updated(False)
-            else:
-                sleep(time_left)
+                subprocess.check_call(["git", "push"], cwd=".json_files")
+                sleep(5*60)
+            except subprocess.CalledProcessError as e:
+                print(f"{e.stdout}{e.stderr}", file=sys.stderr)
+                raise
     Thread(target=data_commit, name="Git sync").start()
 
     print("Loading data", file=sys.stderr)
