@@ -69,13 +69,15 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                     email = validate_email(email).email
                 except EmailNotValidError as e:
                     placeholder.error(f"Invalid email address\n\n{e}")
+                else:
+                    stpl().success("You will recieve an email alert on completion. Make sure to check the junk/spam folder.")
             progress_bar = stpl().progress(0)
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
                 progress_file.write_text(str(0.0))
 
             if not operons_in_progress(genome_id):
-                get_operons_background(genome_id, pegs)
+                operon_thread = get_operons_background(genome_id, pegs)
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
                     try:
@@ -90,7 +92,6 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
 
             if predict_json.exists():
                 if email:
-                    stpl().success("You will recieve an email alert on completion. Make sure to check the junk/spam folder.")
                     sent_emails = st.session_state.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
                         sent_emails.add(email, genome_id)
@@ -116,52 +117,60 @@ def logged_thread(*, target, args):
             if environ.get('PROD'):
                 send_alert_background(error_email, genome_id, err_msg)
             raise
-    Thread(target=wrap_target, args=args).start()
+    thread = Thread(target=wrap_target, args=args)
+    thread.start()
+    return thread
 
 def get_operons_background(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    logged_thread(target=get_operons, args=(genome_id, pegs))
+    return logged_thread(target=get_operons, args=(genome_id, pegs))
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    with PidFile('.lock_'+genome_id):
-        predict_json = get_operon_path(genome_id)
-        if predict_json.exists():
-            return loads(predict_json.read_bytes())
+    for _ in range(3):
+        try:
+            with PidFile('.lock_'+genome_id):
+                predict_json = get_operon_path(genome_id)
+                if predict_json.exists():
+                    return loads(predict_json.read_bytes())
 
-        progress_file = get_operon_progress_path(genome_id)
-        progress_writer = lambda progress: progress_file.write_text(str(progress))
+                progress_file = get_operon_progress_path(genome_id)
+                progress_writer = lambda progress: progress_file.write_text(str(progress))
 
-        progress_writer(0.0)
+                progress_writer(0.0)
 
-        compare_region_json_path = get_compare_region_json_path(genome_id)
-        test_operons_path = Path(f"images_custom/test_operons/{genome_id}")
-        if not compare_region_json_path.exists():
-            rmtree(test_operons_path, ignore_errors=True)
-        compare_region_data = get_compare_region_data(genome_id, pegs, progress_writer)
+                compare_region_json_path = get_compare_region_json_path(genome_id)
+                test_operons_path = Path(f"images_custom/test_operons/{genome_id}")
+                if not compare_region_json_path.exists():
+                    rmtree(test_operons_path, ignore_errors=True)
+                compare_region_data = get_compare_region_data(genome_id, pegs, progress_writer)
 
-        progress_writer(0.50)
+                progress_writer(0.50)
 
-        from JsonToCoordinates import to_coordinates
-
-
-        if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
-            coords_filename = to_coordinates(compare_region_data, genome_id)
-            print("Coordinates created")
-
-            progress_writer(0.55)
-            makedirs(test_operons_path, exist_ok=True)
-            run(["java", "CoordsToJpg.java", coords_filename, test_operons_path.as_posix()])
-            Path(coords_filename).unlink()
-            progress_writer(0.65)
+                from JsonToCoordinates import to_coordinates
 
 
-        from test import main
-        with PidFile('.main_predictor_lock'):
-            operons = main(genome_id, progress_writer)
+                if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
+                    coords_filename = to_coordinates(compare_region_data, genome_id)
+                    print("Coordinates created")
 
-        progress_writer(1.0)
+                    progress_writer(0.55)
+                    makedirs(test_operons_path, exist_ok=True)
+                    run(["java", "CoordsToJpg.java", coords_filename, test_operons_path.as_posix()])
+                    Path(coords_filename).unlink()
+                    progress_writer(0.65)
 
-        predict_json.write_text(dumps(operons))
-        return operons
+
+                from test import main
+                with PidFile('.main_predictor_lock'):
+                    operons = main(genome_id, progress_writer)
+
+                progress_writer(1.0)
+
+                predict_json.write_text(dumps(operons))
+                return operons
+            except PidFileError:
+                sleep(0.1)
+    raise PidFileError
+
 
 def operon_clusters(genome_id: str, pegs: frozenset[int], min_prob: float, probs: dict[int, float]) -> list[set[int]]:
     peg_next  = {}
