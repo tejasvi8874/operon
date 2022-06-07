@@ -90,7 +90,8 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
 
             if predict_json.exists():
                 if email:
-                    sent_emails = st.session.setdefault("sent_emails", LruDict(2048))
+                    stpl().success("You will recieve an email alert on completion. Make sure to check the spam folder.")
+                    sent_emails = st.session_state.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
                         sent_emails.add(email, genome_id)
                         send_alert_background(email, genome_id, None)
