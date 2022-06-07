@@ -118,7 +118,7 @@ def logged_thread(*, target, args):
     Thread(target=wrap_target, args=args).start()
 
 def get_operons_background(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    logged_thread(target=get_operons, args=(genome_id, pegs), name='operonbackground')
+    logged_thread(target=get_operons, args=(genome_id, pegs))
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     with PidFile('.lock_'+genome_id):
