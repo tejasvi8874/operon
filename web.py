@@ -13,7 +13,12 @@ components.html( """
         /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. True page lives on url "https://apps.streamlitusercontent.com/**/*.py/+/" */
 
         const p = window.parent;
-        [p, p.parent, p.parent.parent].forEach(p=>p.postMessage("appLoaded", "*"));
+        [p, p.parent, p.parent.parent].forEach(
+            p=>{
+                console.log([p, "appLoaded"]);
+                p.postMessage("appLoaded", "*");
+            }
+        );
     </script>""", height=0) 
 
 
