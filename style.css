@@ -45,7 +45,7 @@
 	    transition: box-shadow 0.3s, background-color 0.3s;
 	    text-shadow: 0 -1px 0 rgb(0 0 0 / 20%), 0 1px 0 rgb(255 255 255 / 20%);
   }
-.appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(6)>div>[data-baseweb*=""] {
+.appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(6)>div>[data-baseweb] {
 	 margin: 0 auto;
 
 	    border-color: #ff0000;
