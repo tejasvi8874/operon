@@ -167,8 +167,8 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
                 predict_json.write_text(dumps(operons))
                 return operons
-            except PidFileError:
-                sleep(0.1)
+        except PidFileError:
+            sleep(0.1)
     raise PidFileError
 
 
