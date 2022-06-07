@@ -10,7 +10,7 @@
 import streamlit.components.v1 as components 
 components.html( """
     <script>
-        /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. True page lives on url "https://apps.streamlitusercontent.com/**/*.py/+/" */
+        /* Components live in their Iframe. Streamlit's context is the first parent.  Find higher parents for each enclosing IFrames.  Streamlit share adds another iframe on top. True page lives on url "https://apps.streamlitusercontent.com/<blah>.py/+/" */
 
         const p = window.parent;
         [p, p.parent, p.parent.parent].forEach(
