@@ -1,4 +1,5 @@
 from time import sleep
+from multiprocessing import Process
 import requests
 import traceback
 from threading import Thread
@@ -77,7 +78,7 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 progress_file.write_text(str(0.0))
 
             if not operons_in_progress(genome_id):
-                operon_thread = get_operons_background(genome_id, pegs)
+                get_operons_background_process(genome_id, pegs)
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
                     try:
@@ -107,22 +108,20 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
     probs = operon_probs_cache[genome_id]
     return probs
 
-def logged_thread(*, target, args):
+def logged_process(*, target, args):
     def wrap_target(*a):
         try:
             target(*a)
         except:
             err_msg = traceback.format_exc()
-            print(err_msg)
+            print(err_msg, file=sys.stderr)
             if environ.get('PROD'):
                 send_alert_background(error_email, genome_id, err_msg)
             raise
-    thread = Thread(target=wrap_target, args=args)
-    thread.start()
-    return thread
+    Process(target=wrap_target, args=args).start()
 
-def get_operons_background(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    return logged_thread(target=get_operons, args=(genome_id, pegs))
+def get_operons_background_process(genome_id:str, pegs: frozenset) -> dict[str, float]:
+    return logged_process(target=get_operons, args=(genome_id, pegs))
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     for _ in range(3):
@@ -145,10 +144,9 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
                 progress_writer(0.50)
 
-                from JsonToCoordinates import to_coordinates
-
 
                 if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
+                    from JsonToCoordinates import to_coordinates
                     coords_filename = to_coordinates(compare_region_data, genome_id)
                     print("Coordinates created")
 
