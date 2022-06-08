@@ -10,4 +10,4 @@ fish
 openssh-server
 mosh
 gdb
-sudo
+ptrace
