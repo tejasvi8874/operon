@@ -17,7 +17,7 @@ from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email
+from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email, send_alert_background
 from pid import PidFile, PidFileError
 
 def listen_pdb(port_hint):
