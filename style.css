@@ -2,8 +2,8 @@ html, body, [class*="css"], [class*="st-"] {
     font-family: 'Tahoma', 'Arial Black', "Arial Bold";
     text-shadow: 0px 0.5px;
 }
-[class*="st-"] {
-	font-size: larger;
+html, [class*="st-"], p, [class*=".css-"] {
+	font-size: 1.5rem;
 }
 
  #MainMenu {
