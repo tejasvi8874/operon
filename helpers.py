@@ -285,6 +285,8 @@ def send_alert_background(dest_email, genome_id, err_msg):
     logged_background(is_process=False, target=send_alert, args=(dest_email, genome_id, err_msg))
 
 def send_alert(dest_email, genome_id, err_msg):
+    print("Attempt email Send", file=sys.stderr)
+
     msg = EmailMessage()
     msg['From'] = source_email
     msg['Subject'] = 'Operon Finder task completed'
@@ -296,5 +298,5 @@ def send_alert(dest_email, genome_id, err_msg):
         smtp.login(source_email, environ.get('EMAIL_PASSWORD'))
         smtp.send_message(msg)
 
-    print("Sent!")
+    print("Sent!", file=sys.stderr)
 
