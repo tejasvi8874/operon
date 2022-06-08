@@ -222,7 +222,7 @@ if genome_id_option == search:
 else:
     genome_id = st.text_input(
         "Genome ID",
-        "262316.17",
+        genome_id or "262316.17",
         help="Must be available in PATRIC and STRING databases.",
         on_change=reset_submit
     ).strip()
