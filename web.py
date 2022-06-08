@@ -73,6 +73,8 @@ downloadBase64File(`{b64encode(byte_data).decode()}`, `{file_name}`, `{mime_type
 </script>
 </html>
 """
+def reset_submit():
+    st.session_state['submit_key'] = False
 
 if "shell" in st.experimental_get_query_params():
 
@@ -162,7 +164,7 @@ st.markdown('''
 
 manual = "Specify genome ID"
 search = "Search genomes"
-genome_id_option = st.radio("Select genome", (search, manual))
+genome_id_option = st.radio("Select genome", (search, manual), on_change=reset_submit)
 
 if streamlit_cloud:
     while True:
@@ -197,8 +199,6 @@ if genome_id_option == search:
         # Prevent model inference on local machine
         # if not streamlit_cloud:
         #     ...
-        def reset_submit():
-            st.session_state['submit_key'] = False
         organism_selection = st.selectbox(
             "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query", on_change=reset_submit
         )
@@ -219,6 +219,7 @@ else:
         "Genome ID",
         "262316.17",
         help="Must be available in PATRIC and STRING databases.",
+        on_change=reset_submit
     ).strip()
     if re.match(r"\d+\.\d+", genome_id):
         try:
