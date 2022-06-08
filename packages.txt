@@ -9,3 +9,5 @@ neovim
 fish
 openssh-server
 mosh
+gdb
+sudo
