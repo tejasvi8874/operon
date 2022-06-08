@@ -130,6 +130,8 @@ header[data-testid='stHeader'] {
 }
 
 .appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] .element-container:nth-child(3) > .stMarkdown > [data-testid="stMarkdownContainer"] {
+	    background: #ADD8E6;
+	    border-radius: 3em;
 	text-align: center;
 }
 
