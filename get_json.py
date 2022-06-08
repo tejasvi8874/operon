@@ -24,6 +24,16 @@ from pid import PidFile, PidFileError
 import streamlit as st
 from JsonToCoordinates import parse_string_scores
 
+def listen_pdb(port_hint):
+    import pdb_attach
+    for p in range(port_hint, port_hint+100):
+        try:
+            pdb_attach.listen(p)
+            break
+        except OSError:
+            pass
+    else:
+        raise Exception(f"Coudn't find a port")
 
 def get_operon_progress_path(genome_id):
     return Path(f'.json_files/{genome_id}/operons_progress')
@@ -72,10 +82,10 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                     placeholder.error(f"Invalid email address\n\n{e}")
                 else:
                     stpl().success("You will recieve an email alert on completion. Make sure to check the junk/spam folder.")
-            progress_bar = stpl().progress(0)
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
                 progress_file.write_text(str(0.0))
+            progress_bar = stpl().progress(0.05)
 
             if not operons_in_progress(genome_id):
                 get_operons_background_process(genome_id, pegs)
@@ -95,7 +105,7 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 if email:
                     sent_emails = st.session_state.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
-                        sent_emails.add(email, genome_id)
+                        sent_emails[email, genome_id] = None
                         send_alert_background(email, genome_id, None)
             else:
                 st.error(f"Some error occured, please retry and report the genome id to {source_email}")

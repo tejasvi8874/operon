@@ -7,3 +7,4 @@ pid
 pyinstrument
 numba
 email-validator
+pdb-attach

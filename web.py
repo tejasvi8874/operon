@@ -21,7 +21,6 @@ components.html( """
         );
     </script>""", height=0) 
 
-
 from gzip import decompress
 from io import TextIOWrapper
 import numpy as np
