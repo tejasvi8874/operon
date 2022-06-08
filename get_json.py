@@ -86,8 +86,13 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
 
                 from test import main
                 print("before predict")
-                with PidFile('.main_predictor_lock'):
-                    operons = main(genome_id, progress_writer)
+                for _ in range(10*60):
+                    try:
+                        with PidFile('.main_predictor_lock'):
+                            operons = main(genome_id, progress_writer)
+                            break
+                    except PidFileError:
+                        sleep(1)
                 print("predicted")
 
                 progress_writer(1.0)
