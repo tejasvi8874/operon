@@ -1,4 +1,5 @@
 from os import makedirs, environ
+import sys
 from time import sleep
 from helpers import source_email, send_alert_background
 import streamlit as st
@@ -48,6 +49,7 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
 
             if not operons_in_progress(genome_id):
                 get_operons_background_process(genome_id, pegs)
+            print("Starting loop", file=sys.stderr)
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
                     try:
@@ -60,8 +62,11 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 progress_bar.progress(progress)
                 sleep(1)
 
+            print("End loop", file=sys.stderr)
             if predict_json.exists():
+                print("Json exists", file=sys.stderr)
                 if email:
+                    print("Sending email", file=sys.stderr)
                     sent_emails = st.session_state.setdefault("sent_emails", LruDict(2048))
                     if (email, genome_id) not in sent_emails:
                         sent_emails[email, genome_id] = None
