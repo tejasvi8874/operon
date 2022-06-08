@@ -157,8 +157,8 @@ st.write(
 #st.markdown("Cluster genes into operons")
 st.markdown('''
     <br>
-    <img alt="lab-logo" src="https://i.imgur.com/j34Ee87.jpg">
-    <img alt="operon-logo" src="https://i.imgur.com/JJLF0Iz.png">
+    <img alt="lab-logo" src="https://gistcdn.githack.com/tejasvi8874/79d777264bf5d66f80ca3fd02f509b8d/raw/d3db535e1dccfb9b92caf73daf6c7b4799796281/lab-logo.svg">
+    <img alt="operon-logo" src="https://gistcdn.githack.com/tejasvi8874/79d777264bf5d66f80ca3fd02f509b8d/raw/073ae0fcde48877725eda00c03b87eb7533308b2/operon-logo.svg">
     <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
     <hr>
     ''', unsafe_allow_html=True)
