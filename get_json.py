@@ -3,7 +3,6 @@ from multiprocessing import Process
 import requests
 import traceback
 from threading import Thread
-from email_validator import validate_email, EmailNotValidError
 import sys
 import asyncio
 from functools import lru_cache

@@ -2,6 +2,7 @@ from os import makedirs, environ
 import streamlit as st
 from get_json import get_operons_background_process, get_operon_path
 from json import loads
+from email_validator import validate_email, EmailNotValidError
 
 class LruDict:
     def __init__(self, size):
