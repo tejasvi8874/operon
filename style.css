@@ -4,6 +4,7 @@ html, body, [class*="css"], [class*="st-"] {
 }
 label[class*="css-"], [class*="st-"], p, [class*=".css-"] {
 	font-size: 1.5rem;
+	font-weight: 600;
 }
 
  #MainMenu {
