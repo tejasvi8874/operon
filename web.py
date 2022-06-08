@@ -165,7 +165,6 @@ st.markdown('''
 
 manual = "Specify genome ID"
 search = "Search genomes"
-genome_id_option = st.radio("Select genome", (search, manual), on_change=reset_submit)
 
 if streamlit_cloud:
     while True:
@@ -177,7 +176,11 @@ if streamlit_cloud:
             sleep(0.1)
 
 
-genome_id = None
+genome_id = st.experimental_get_query_params().get("genome_id", [None])[0]
+if genome_id:
+    st.experimental_set_query_params()
+genome_id_option = st.radio("Select genome", (search, manual), index=(1 if genome_id else 0), on_change=reset_submit)
+
 if genome_id_option == search:
         sample_organisms = defaultdict(lambda: (None, None))
         for p in Path(".json_files").glob("*/compare_region.json.gz"):
