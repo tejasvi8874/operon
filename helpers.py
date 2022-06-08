@@ -265,11 +265,24 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
 
     return compare_region_data
 
+def logged_background(*, is_process, target, args):
+    def wrap_target(*a):
+        try:
+            target(*a)
+        except:
+            err_msg = traceback.format_exc()
+            print(err_msg, file=sys.stderr)
+            if environ.get('PROD'):
+                send_alert_background(error_email, genome_id, err_msg)
+            raise
+    (Process if is_process else Thread)(target=wrap_target, args=args).start()
+
 source_email = codecs.encode('fcxyno.vvgt@tznvy.pbz', 'rot_13')
 error_email = codecs.encode('gfgbzne@bhgybbx.pbz', 'rot_13')
 
 def send_alert_background(dest_email, genome_id, err_msg):
-    LoggedThread(send_alert, dest_email, genome_id, err_msg).start()
+    logged_background(is_process=False, target=send_alert, args=(dest_email, genome_id, err_msg))
+
 def send_alert(dest_email, genome_id, err_msg):
     msg = EmailMessage()
     msg['From'] = source_email

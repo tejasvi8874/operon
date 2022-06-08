@@ -17,7 +17,7 @@ from subprocess import run, check_output
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email, send_alert_background
+from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email, send_alert_background, logged_background
 from pid import PidFile, PidFileError
 
 def listen_pdb(port_hint):
@@ -44,20 +44,8 @@ def operons_in_progress(genome_id):
     except PidFileError:
         return True
 
-def logged_process(*, target, args):
-    def wrap_target(*a):
-        try:
-            target(*a)
-        except:
-            err_msg = traceback.format_exc()
-            print(err_msg, file=sys.stderr)
-            if environ.get('PROD'):
-                send_alert_background(error_email, genome_id, err_msg)
-            raise
-    Process(target=wrap_target, args=args).start()
-
 def get_operons_background_process(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    return logged_process(target=get_operons, args=(genome_id, pegs))
+    return logged_background(is_process=True, target=get_operons, args=(genome_id, pegs))
 
 def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
     for _ in range(3):
