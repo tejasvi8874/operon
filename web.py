@@ -452,7 +452,7 @@ st.markdown('''
 <center><br><hr>
 Developed and maintained by:<br>
 <b>
-Tejasvi Singh Tomar, Pratik Das Gupta, and Shankar Prasad Kanaujia<br>
+Tejasvi Singh Tomar, Pratik Dasgupta, and Shankar Prasad Kanaujia<br>
 <a href="(https://www.iitg.ac.in/spkanaujia)">Structural and Computational Biology Laboratory (SCBL)</a></br>
 Indian Institute of Technology - Guwahati<br>
 Copyright Ⓒ 2022 Operon Finder <br>
