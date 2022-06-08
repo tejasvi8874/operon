@@ -40,7 +40,8 @@ from pid import PidFile, PidFileError
 
 
 import pandas as pd
-from get_json import operon_clusters, operon_probs
+from get_json import operon_clusters
+from web_helpers import operon_probs
 import streamlit as st
 import sys
 import shlex
@@ -190,6 +191,7 @@ if genome_id_option == search:
             if p.parent.name == '224911.5':
                 continue
             sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
+        sample_organisms = dict(sorted(sample_organisms.items()))
         for species_name, genome_ids in valid_organisms():
             a_genome_id = genome_ids.pop()
             if a_genome_id == '224911.5':
