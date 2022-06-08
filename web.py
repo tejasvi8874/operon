@@ -176,10 +176,10 @@ if streamlit_cloud:
             sleep(0.1)
 
 
-genome_id = st.experimental_get_query_params().get("genome_id", [None])[0]
-if genome_id:
+query_genome_id = st.experimental_get_query_params().get("genome_id", [None])[0]
+if query_genome_id:
     st.experimental_set_query_params()
-genome_id_option = st.radio("Select genome", (search, manual), index=(1 if genome_id else 0), on_change=reset_submit)
+genome_id_option = st.radio("Select genome", (search, manual), index=(1 if query_genome_id else 0), on_change=reset_submit)
 
 if genome_id_option == search:
         sample_organisms = defaultdict(lambda: (None, None))
@@ -222,7 +222,7 @@ if genome_id_option == search:
 else:
     genome_id = st.text_input(
         "Genome ID",
-        genome_id or "262316.17",
+        query_genome_id or "262316.17",
         help="Must be available in PATRIC and STRING databases.",
         on_change=reset_submit
     ).strip()
@@ -251,7 +251,7 @@ if genome_id:
     )
 
 
-s_chk = st.checkbox("Run", key='submit_key')
+s_chk = st.checkbox("Run", value=query_genome_id, key='submit_key')
 submit = s_chk if genome_id else False
 
 def br(times=1):
