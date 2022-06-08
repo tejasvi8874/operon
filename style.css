@@ -135,14 +135,14 @@ header[data-testid='stHeader'] {
 
 @media (min-width: 40em) {
 	 img[alt="operon-logo"] {
-		 height: 7em;
+		 height: 10em;
 	 }
 	 img[alt="lab-logo"] {
-		 height: 7em;
+		 height: 10em;
 		 float: right;
 	 }
 	 img[alt="iitg-logo"] {
-		 height: 7em;
+		 height: 10em;
 		 float: left;
 	 }
  }
