@@ -4,7 +4,8 @@ from gzip import compress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pickle
 from itertools import chain, groupby, tee
-from threading import get_ident
+from threading import get_ident, Thread
+from multiprocessing import Process
 import threading
 from typing import Optional, NamedTuple, Iterator
 from string import ascii_letters
