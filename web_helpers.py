@@ -35,22 +35,23 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
             stpl = lambda: placeholders.append(st.empty()) or placeholders[-1]
             stpl().info(f"Please wait while we fetch the data and predict operons. It might take upto {round(len(pegs)/5/60)} minutes.")
             email = stpl().text_input("Get email alert on completion", value=st.session_state.get("email", ""), placeholder='Email address', help="Make sure to check spam/junk folder. Email will be recieved from spklab.iitg@gmail.com").strip()
+            validated_email = None
             if email:
                 try:
-                    email = validate_email(email).email
+                    validated_email = validate_email(email).email
                 except EmailNotValidError as e:
                     placeholder.error(f"Invalid email address\n\n{e}")
                 else:
-                    stpl().success(f"On completion the email alert will be sent to {email}. Make sure to check the junk/spam folder.")
+                    stpl().success(f"On completion the email alert will be sent to {validated_email}. Make sure to check the junk/spam folder.")
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
                 progress_file.write_text(str(0.0))
             progress_bar = stpl().progress(0.05)
 
             if not operons_in_progress(genome_id):
-                get_operons_background_process(genome_id, pegs)
-            while not operons_in_progress(genome_id):
-                sleep(0.1)
+                get_operons_background_process(genome_id, pegs, validated_email)
+                while not operons_in_progress(genome_id):
+                    sleep(0.1)
             print("Starting loop", file=sys.stderr)
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
@@ -64,15 +65,8 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 progress_bar.progress(progress)
                 sleep(1)
 
-            print("End loop", file=sys.stderr)
             if predict_json.exists():
                 print("Json exists", file=sys.stderr)
-                if email:
-                    print("Sending email", file=sys.stderr)
-                    sent_emails = st.session_state.setdefault("sent_emails", LruDict(2048))
-                    if (email, genome_id) not in sent_emails:
-                        sent_emails[email, genome_id] = None
-                        send_alert_background(email, genome_id, None)
             else:
                 st.error(f"Some error occured, please retry and report the genome id to {source_email}")
                 raise Exception(f"Error with {genome_id=}")

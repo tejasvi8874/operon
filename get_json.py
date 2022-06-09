@@ -44,10 +44,10 @@ def operons_in_progress(genome_id):
     except PidFileError:
         return True
 
-def get_operons_background_process(genome_id:str, pegs: frozenset) -> dict[str, float]:
-    return logged_background(is_process=True, target=get_operons, args=(genome_id, pegs))
+def get_operons_background_process(genome_id:str, pegs: frozenset, validated_email: Optional[str]) -> dict[str, float]:
+    return logged_background(is_process=True, target=get_operons, args=(genome_id, pegs, validated_email))
 
-def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
+def get_operons(genome_id:str, pegs: frozenset, validated_email: Optional[str]) -> dict[str, float]:
     for _ in range(3):
         try:
             with PidFile('.lock_'+genome_id):
@@ -98,6 +98,9 @@ def get_operons(genome_id:str, pegs: frozenset) -> dict[str, float]:
                 progress_writer(1.0)
 
                 predict_json.write_text(dumps(operons))
+                if validated_email:
+                    print("Sending email", file=sys.stderr)
+                    send_alert_background(validated_email, genome_id, None)
                 print("bye")
                 return operons
         except PidFileError:
