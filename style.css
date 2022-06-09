@@ -4,6 +4,13 @@ html, body, [class*="css"], [class*="st-"] {
 label[class*="css-"], [class*="st-"], p, [class*=".css-"] {
 	font-size: 1.5rem;
 }
+td, th {
+	font-size: 1.05rem !important;
+}
+
+[style*="width: 504px;"] {
+	width: 1000px;
+}
 
 label[class*="css-"] {
 	font-weight: 600 !important;
@@ -140,8 +147,12 @@ header[data-testid='stHeader'] {
 	display: none !important;
 }
 
+.stApp {
+	background:#e7dcff;
+}
+
 .appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] .element-container:nth-child(3) > .stMarkdown > [data-testid="stMarkdownContainer"] {
-	    background: #ADD8E6;
+	    background: #a46cff;
 	    border-radius: 0 0 3em 3em;
 	text-align: center;
 	margin: 0 -1em 0 -1em;
