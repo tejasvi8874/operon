@@ -70,7 +70,7 @@ def get_operons(genome_id:str, validated_email: Optional[str]) -> dict[str, floa
                 test_operons_path = Path(f"images_custom/test_operons/{genome_id}")
                 if not compare_region_json_path.exists():
                     rmtree(test_operons_path, ignore_errors=True)
-                pegs = list(to_pid(genome_id).keys())
+                pegs = list(to_pid(genome_id).full_data.keys())
                 compare_region_data = get_compare_region_data(genome_id, pegs, progress_writer)
                 logger.info("compare region")
 
