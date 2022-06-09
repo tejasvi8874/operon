@@ -45,8 +45,8 @@ def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
                     stpl().success(f"On completion the email alert will be sent to {validated_email}. Make sure to check the junk/spam folder.")
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
-                progress_file.write_text(str(0.0))
-            progress_bar = stpl().progress(0.05)
+                progress_file.write_text(str(0.01))
+            progress_bar = stpl().progress(0.01)
 
             if not operons_in_progress(genome_id):
                 get_operons_background_process(genome_id, validated_email)

