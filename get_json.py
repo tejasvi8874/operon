@@ -45,7 +45,7 @@ def operons_in_progress(genome_id):
     except PidFileError:
         return True
 
-def get_operons_background_process(genome_id:str, validated_email: Optional[str]) -> dict[str, float]:
+def get_operons_background_process(genome_id:str, validated_email: Optional[str]):
     Popen([sys.executable, "-c", f'''
 from get_json import get_operons
 get_operons({repr(genome_id)}, {repr(validated_email)})
