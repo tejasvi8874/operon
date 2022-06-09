@@ -320,8 +320,7 @@ if submit:
 
             refseq_help = "Comma separated RefSeq IDs"
             refseq_input_label = "Comma separated RefSeq IDs"
-            refseq_prefill = df.loc[clusters[0], "RefSeq"]
-            st.write(refseq_prefill)
+            refseq_prefill = ', '.join(df.loc[list(clusters[0]), "RefSeq"])
             
             contain_all = st.checkbox("All of the genes",help=refseq_help)
             if contain_all:
@@ -330,7 +329,7 @@ if submit:
                     refseq_prefill,
                     key="all",
                 )
-                must_pegs = {p.lower() for p in must_pegs_text.split(",")}
+                must_pegs = {p.lower().strip() for p in must_pegs_text.split(",")}
 
             contain_any = st.checkbox("Atleast one of the genes",help=refseq_help)
             if contain_any:
@@ -339,7 +338,7 @@ if submit:
                     refseq_prefill,
                     key="any",
                 )
-                any_pegs = {p.lower() for p in any_pegs_text.split(",")}
+                any_pegs = {p.lower().strip() for p in any_pegs_text.split(",")}
 
             contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
             if contain_keyword:
