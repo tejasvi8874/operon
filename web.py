@@ -295,7 +295,7 @@ if submit:
             step=0.01,
         )
 
-        clusters = operon_clusters(genome_id, pegs, min_prob, probs)
+        clusters = operon_clusters(genome_id, list(full_data.keys()), min_prob, probs)
         df["Confidence"] = pd.Series(probs)
         df["Intergenic distance"] = pd.Series([None]*len(df.index))
 
