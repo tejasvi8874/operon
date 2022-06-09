@@ -1,9 +1,10 @@
 from os import makedirs, environ
+from base64 import b64encode
 import sys
 from time import sleep
 from helpers import source_email, send_alert_background, logger
 import streamlit as st
-from get_json import get_operons_background_process, get_operon_path, get_operon_progress_path, operons_in_progress
+from get_json import get_operons_background_process, get_operon_path, get_operon_progress_path, operons_in_progress, get_email_alerts_dir_path
 from json import loads
 from email_validator import validate_email, EmailNotValidError
 
@@ -42,6 +43,9 @@ def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
                 except EmailNotValidError as e:
                     placeholder.error(f"Invalid email address\n\n{e}")
                 else:
+                    alert_dir = get_email_alerts_dir_path(genome_id)
+                    alert_dir.mkdir(parents=True, exist_ok=True)
+                    alert_dir.joinpath(b64encode(validated_email.encode()).decode()).touch(exist_ok=True)
                     stpl().success(f"On completion the email alert will be sent to {validated_email}. Make sure to check the junk/spam folder.")
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
@@ -49,7 +53,7 @@ def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
             progress_bar = stpl().progress(0.01)
 
             if not operons_in_progress(genome_id):
-                get_operons_background_process(genome_id, validated_email)
+                get_operons_background_process(genome_id)
                 while not operons_in_progress(genome_id):
                     sleep(0.1)
             logger.info("Starting loop")

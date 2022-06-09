@@ -1,4 +1,5 @@
 from time import sleep
+from base64 import b64decode
 from tempfile import NamedTemporaryFile
 from multiprocessing import Process
 import requests
@@ -32,6 +33,9 @@ def listen_pdb(port_hint):
     else:
         raise Exception(f"Coudn't find a port")
 
+def get_email_alerts_dir_path(genome_id):
+    return Path(f'.json_files/{genome_id}/email_alerts')
+
 def get_operon_progress_path(genome_id):
     return Path(f'.json_files/{genome_id}/operons_progress')
 
@@ -45,14 +49,11 @@ def operons_in_progress(genome_id):
     except PidFileError:
         return True
 
-def get_operons_background_process(genome_id:str, validated_email: Optional[str]) -> dict[str, float]:
-    Popen([sys.executable, "-c", f'''
-from get_json import get_operons
-get_operons({repr(genome_id)}, {repr(validated_email)})
-'''])
+def get_operons_background_process(genome_id:str) -> dict[str, float]:
+    Popen([sys.executable, "-c", f"from get_json import get_operons; get_operons({repr(genome_id)})"])
 
 
-def get_operons(genome_id:str, validated_email: Optional[str]) -> dict[str, float]:
+def get_operons(genome_id:str) -> dict[str, float]:
     for _ in range(3):
         try:
             with PidFile('.lock_'+genome_id):
@@ -104,9 +105,16 @@ def get_operons(genome_id:str, validated_email: Optional[str]) -> dict[str, floa
                 progress_writer(1.0)
 
                 predict_json.write_text(dumps(operons))
-                if validated_email:
+
+                email_dir = get_email_alerts_dir_path(genome_id)
+                if email_dir.exists():
                     logger.info("Sending email")
-                    send_alert_background(validated_email, genome_id, None)
+                    for b64_validated_email_path in email_dir.iterdir():
+                        recipient = b64decode(b64_validated_email_path.name.encode()).decode()
+                        send_alert_background(recipient, genome_id, None)
+                        b64_validated_email_path.unlink()
+                        logger.info(f"Sent to email {recipient}")
+
                 logger.info("bye")
                 return operons
         except PidFileError:
