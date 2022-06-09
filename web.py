@@ -320,8 +320,8 @@ if submit:
 
             refseq_help = "Comma separated RefSeq IDs"
             refseq_input_label = "Comma separated RefSeq IDs"
-            sample_refseqs = df["RefSeq"][:8]
-            refseq_prefill = ', '.join(sample_refseqs)
+            refseq_prefill = df.loc[clusters[0], "RefSeq"]
+            st.write(refseq_prefill)
             
             contain_all = st.checkbox("All of the genes",help=refseq_help)
             if contain_all:
