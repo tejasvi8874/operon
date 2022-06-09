@@ -1,4 +1,5 @@
 from heapq import heappush
+from string import ascii_letters
 import traceback
 from shutil import rmtree
 from gzip import compress
@@ -81,7 +82,8 @@ def to_pid( genome_id: str) -> PidData:
     full_data = {}
     assert feature_data
     refseq_locus_tag_present = False
-    used_stripped_refseqs = {normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None")).rstrip(ascii_letters) for feature in feature_data}
+    used_stripped_numeric_refseqs = {normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None")).rstrip(ascii_letters) for feature in feature_data}
+    used_stripped_numeric_refseqs.discard("") # If no numbers in there. E.g. https://www.patricbrc.org/view/Genome/214092.191#view_tab=features
     i = 0
     max_i = 2*len(feature_data)
     while i < len(feature_data) and i < max_i:
@@ -99,9 +101,12 @@ def to_pid( genome_id: str) -> PidData:
             for delta in (1, -1):
                 if patric_id+delta in full_data:
                     adjacent_full_data = full_data[patric_id+delta]
-                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_full_data.n_refseq.rstrip(ascii_letters))
+                    adjacent_num_suffixed_refseq = adjacent_full_data.n_refseq.rstrip(ascii_letters)
+                    if not adjacent_num_suffixed_refseq:
+                        continue # If no numbers in there. E.g. https://www.patricbrc.org/view/Genome/214092.191#view_tab=features
+                    refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_num_suffixed_refseq)
                     n_refseq = refseq_prefix + str(adjacent_refseq_counter - delta)
-                    if n_refseq in used_stripped_refseqs: # Adjacent refseqs already assigned
+                    if n_refseq in used_stripped_numeric_refseqs: # Adjacent refseqs already assigned
                         continue
 
                     if protein_id == "None":
@@ -174,6 +179,7 @@ def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
 normalize_refseq = str.lower
 
 def get_prefix_counter(string):
+        assert not (string and string[-1].isdigit()), "num suffix required"
         digits = []
         dot_seen = False
         for c in reversed(string):
