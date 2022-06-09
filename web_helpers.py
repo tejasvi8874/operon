@@ -49,6 +49,8 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
 
             if not operons_in_progress(genome_id):
                 get_operons_background_process(genome_id, pegs)
+            while not operons_in_progress(genome_id):
+                sleep(0.1)
             print("Starting loop", file=sys.stderr)
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):

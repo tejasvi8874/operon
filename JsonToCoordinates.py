@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor
+from string import ascii_letters
 from gzip import decompress
 from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter
 import multiprocessing
@@ -46,13 +47,13 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
         if string_id in string_id_n_refseq_map:
                 return string_id_n_refseq_map[string_id]
         # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
-        prefix, counter = get_prefix_counter(string_id)
+        prefix, counter = get_prefix_counter(string_id.rstrip(ascii_letters))
         for delta in (-1, 1):
                 test_string_id = prefix + str(counter + delta)
                 if test_string_id in string_id_n_refseq_map:
                     return {r_prefix + str(r_counter - delta)
                             for test_refseq in string_id_n_refseq_map[test_string_id]
-                            for r_prefix, r_counter in [get_prefix_counter(test_refseq)]}
+                            for r_prefix, r_counter in [get_prefix_counter(test_refseq.rstrip(ascii_letters))]}
         # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
         return {normalize_refseq(string_id)}
 

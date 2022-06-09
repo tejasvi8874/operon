@@ -1,4 +1,5 @@
 from heapq import heappush
+import traceback
 from shutil import rmtree
 from gzip import compress
 from concurrent.futures import ThreadPoolExecutor, as_completed
