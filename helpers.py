@@ -30,6 +30,24 @@ from os import environ
 from email.message import EmailMessage
 
 
+import logging
+from logging.handlers import RotatingFileHandler
+import time
+
+def get_logger():
+    #Setup logger
+    logger = logging.getLogger(__name__)
+    FORMAT = "[%(asctime)s %(threadName)s %(filename)s->%(funcName)s():%(lineno)s]%(levelname)s: %(message)s"
+    logging.basicConfig(format=FORMAT, level=logging.INFO)
+    #Log to file
+    logging_filename = Path('logs/main.log')
+    logging_filename.parent.mkdir(parents=True, exist_ok=True)
+    handler = RotatingFileHandler(logging_filename, maxBytes=1000000, backupCount=10) #10 files of 1MB each
+    handler.setFormatter(logging.Formatter(FORMAT))
+    logger.addHandler(handler)
+    return logger
+logger = get_logger()
+
 
 class ServerBusy(Exception):
     pass
@@ -104,7 +122,7 @@ def to_pid( genome_id: str) -> PidData:
         full_data[patric_id] = PatricMeta(
             n_refseq=n_refseq, desc=desc, protein_id=protein_id
         )
-        
+
         gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
 
     # Different genes can have different accession ID (though rare) E.g. first and last gene of 798128.4
@@ -211,7 +229,7 @@ def track_call(orig_func):
         try:
             return orig_func(*a, **k)
         except Exception as e:
-            print(e, f"{orig_func.__name__}({a}; {k})")
+            logger.error(e, f"{orig_func.__name__}({a}; {k})")
             raise
     return track_call_wrapper
 
@@ -233,7 +251,7 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
             try:
                 return loads(temp_json_path.read_bytes())
             except JSONDecodeError as e:
-                print('JSONDecodeError', fig_gene, e, temp_json_path.read_bytes(), 'Retrying', fig_gene)
+                logger.error('JSONDecodeError', fig_gene, e, temp_json_path.read_bytes(), 'Retrying', fig_gene)
                 temp_json_path.unlink()
         data = '{"method": "SEED.compare_regions_for_peg", "params": ["' + fig_gene + '", 5000, 20, "pgfam", "representative+reference"], "id": 1}'
         for _ in range(3):
@@ -242,7 +260,7 @@ def get_compare_region_data(genome_id, pegs, progress_clb=None):
                 break
             msg = resp.content.decode()
             err_msg = f"Error with {fig_gene}. " + """Doing with requests though curl command should be: curl --fail --max-time 300 --data-binary '{"method": "SEED.compare_regions_for_peg", "params": ["{fig_gene}", 5000, 20, "pgfam", "representative+reference"], "id": 1}' https://p3.theseed.org/services/compare_region --compressed\n""" + msg
-            print(err_msg, file=sys.stderr)
+            logger.error(err_msg)
             if '502 Bad Gateway' in msg:
                 sleep(5)
                 continue
@@ -273,7 +291,7 @@ def logged_background(*, is_process, target, args):
             target(*a)
         except:
             err_msg = traceback.format_exc()
-            print(err_msg, file=sys.stderr)
+            logger.critical(err_msg)
             if environ.get('PROD'):
                 send_alert_background(error_email, genome_id, err_msg)
             raise
@@ -286,18 +304,18 @@ def send_alert_background(dest_email, genome_id, err_msg):
     logged_background(is_process=False, target=send_alert, args=(dest_email, genome_id, err_msg))
 
 def send_alert(dest_email, genome_id, err_msg):
-    print("Attempt email Send", file=sys.stderr)
+    logger.info("Attempt email Send")
 
     msg = EmailMessage()
     msg['From'] = source_email
     msg['Subject'] = 'Operon Finder task completed'
     msg['To'] = ', '.join([dest_email,])
-            
+
     msg.set_content(f'Error with {genome_id}' if err_msg else f'The operon predictions for the requested genome id, {genome_id} are now available <a src="https://apps.streamlitusercontent.com/tejasvi8874/operon/main/web.py/+/?genome_id={83332.12}">here</a>.\n\nRegards,\nSCBL - IIT Guwahati', subtype='html')
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(source_email, environ.get('EMAIL_PASSWORD'))
         smtp.send_message(msg)
 
-    print("Sent!", file=sys.stderr)
+    logger.info("Sent!")
 

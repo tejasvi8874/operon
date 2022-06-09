@@ -1,4 +1,5 @@
 from time import sleep
+from tempfile import NamedTemporaryFile
 from multiprocessing import Process
 import requests
 import traceback
@@ -13,11 +14,11 @@ from pathlib import Path
 from typing import Optional
 from urllib.request import urlretrieve
 from glob import glob
-from subprocess import run, check_output
+from subprocess import run, check_output, Popen
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from json import loads, dump, dumps
-from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email, send_alert_background, logged_background
+from helpers import get_session, get_compare_region_data, get_compare_region_json_path, send_alert, source_email, send_alert_background, logged_background, to_pid, logger
 from pid import PidFile, PidFileError
 
 def listen_pdb(port_hint):
@@ -44,10 +45,14 @@ def operons_in_progress(genome_id):
     except PidFileError:
         return True
 
-def get_operons_background_process(genome_id:str, pegs: frozenset, validated_email: Optional[str]) -> dict[str, float]:
-    return logged_background(is_process=True, target=get_operons, args=(genome_id, pegs, validated_email))
+def get_operons_background_process(genome_id:str, validated_email: Optional[str]) -> dict[str, float]:
+    Popen([sys.executable, "-c", '''
+from get_json import get_operons
+get_operons({repr(genome_id)}, {repr(validated_email)})
+'''])
 
-def get_operons(genome_id:str, pegs: frozenset, validated_email: Optional[str]) -> dict[str, float]:
+
+def get_operons(genome_id:str, validated_email: Optional[str]) -> dict[str, float]:
     for _ in range(3):
         try:
             with PidFile('.lock_'+genome_id):
@@ -65,17 +70,18 @@ def get_operons(genome_id:str, pegs: frozenset, validated_email: Optional[str]) 
                 test_operons_path = Path(f"images_custom/test_operons/{genome_id}")
                 if not compare_region_json_path.exists():
                     rmtree(test_operons_path, ignore_errors=True)
+                pegs = list(to_pid(genome_id).keys())
                 compare_region_data = get_compare_region_data(genome_id, pegs, progress_writer)
-                print("compare region")
+                logger.info("compare region")
 
                 progress_writer(0.50)
 
 
                 if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
                     from JsonToCoordinates import to_coordinates
-                    print("Enter tocoord")
+                    logger.info("Enter tocoord")
                     coords_filename = to_coordinates(compare_region_data, genome_id)
-                    print("Coordinates created")
+                    logger.info("Coordinates created")
 
                     progress_writer(0.55)
                     makedirs(test_operons_path, exist_ok=True)
@@ -85,7 +91,7 @@ def get_operons(genome_id:str, pegs: frozenset, validated_email: Optional[str]) 
 
 
                 from test import main
-                print("before predict")
+                logger.info("before predict")
                 for _ in range(10*60):
                     try:
                         with PidFile('.main_predictor_lock'):
@@ -93,15 +99,15 @@ def get_operons(genome_id:str, pegs: frozenset, validated_email: Optional[str]) 
                             break
                     except PidFileError:
                         sleep(1)
-                print("predicted")
+                logger.info("predicted")
 
                 progress_writer(1.0)
 
                 predict_json.write_text(dumps(operons))
                 if validated_email:
-                    print("Sending email", file=sys.stderr)
+                    logger.info("Sending email")
                     send_alert_background(validated_email, genome_id, None)
-                print("bye")
+                logger.info("bye")
                 return operons
         except PidFileError:
             sleep(0.1)

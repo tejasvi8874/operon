@@ -1,7 +1,7 @@
 from os import makedirs, environ
 import sys
 from time import sleep
-from helpers import source_email, send_alert_background
+from helpers import source_email, send_alert_background, logger
 import streamlit as st
 from get_json import get_operons_background_process, get_operon_path, get_operon_progress_path, operons_in_progress
 from json import loads
@@ -26,14 +26,14 @@ class LruDict:
 
 
 operon_probs_cache = LruDict(128)
-def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
+def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
     if genome_id not in operon_probs_cache:
         makedirs(f'.json_files/{genome_id}', exist_ok=True)
         predict_json = get_operon_path(genome_id)
         if not predict_json.exists():
             placeholders = []
             stpl = lambda: placeholders.append(st.empty()) or placeholders[-1]
-            stpl().info(f"Please wait while we fetch the data and predict operons. It might take upto {round(len(pegs)/5/60)} minutes.")
+            stpl().info(f"Please wait while we fetch the data and predict operons. It might take upto {round(peg_count/5/60)} minutes.")
             email = stpl().text_input("Get email alert on completion", value=st.session_state.get("email", ""), placeholder='Email address', help="Make sure to check spam/junk folder. Email will be recieved from spklab.iitg@gmail.com").strip()
             validated_email = None
             if email:
@@ -49,10 +49,10 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
             progress_bar = stpl().progress(0.05)
 
             if not operons_in_progress(genome_id):
-                get_operons_background_process(genome_id, pegs, validated_email)
+                get_operons_background_process(genome_id, validated_email)
                 while not operons_in_progress(genome_id):
                     sleep(0.1)
-            print("Starting loop", file=sys.stderr)
+            logger.info("Starting loop")
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
                     try:
@@ -66,7 +66,7 @@ def operon_probs(genome_id: str, pegs: frozenset) -> dict[str, float]:
                 sleep(1)
 
             if predict_json.exists():
-                print("Json exists", file=sys.stderr)
+                logger.info("Json exists")
             else:
                 st.error(f"Some error occured, please retry and report the genome id to {source_email}")
                 raise Exception(f"Error with {genome_id=}")

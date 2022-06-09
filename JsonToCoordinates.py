@@ -1,7 +1,7 @@
 from concurrent.futures import ProcessPoolExecutor
 from string import ascii_letters
 from gzip import decompress
-from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter
+from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter, logger
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -73,7 +73,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
                     string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
 
     assert string
-    print("Parsed STRING scores")
+    logger.info("Parsed STRING scores")
     return string
 
 def to_coordinates(compare_region_data: list, genome_id: str) -> str:
@@ -393,7 +393,7 @@ def writer(figdata: str, lock, out_file_name: str, string: dict[str, float]):
                                     start, end = f['end'], f['beg']
 
                     if total == 0:
-                            print(bname1)
+                            logger.info(bname1)
                             continue
                     start = int(start)
                     end = int(end)
