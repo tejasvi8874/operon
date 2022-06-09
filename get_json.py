@@ -114,7 +114,7 @@ def get_operons(genome_id:str, validated_email: Optional[str]) -> dict[str, floa
     raise PidFileError
 
 
-def operon_clusters(genome_id: str, pegs: frozenset[int], min_prob: float, probs: dict[int, float]) -> list[set[int]]:
+def operon_clusters(pegs: frozenset[int], min_prob: float, probs: dict[int, float]) -> list[set[int]]:
     peg_next  = {}
     prev = -1
     for peg in sorted(pegs):
