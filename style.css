@@ -41,13 +41,9 @@ label[class*="css-"] {
    line-height: 2;
    color: inherit;
    width: auto;
-   background-color: rgb(200, 230, 200);
+   background-color: rgb(0, 220, 0);
    border: 1px solid rgba(38, 39, 48, 0.2);
    height: 50px !important;
- }
-
-.appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(8)>.stCheckbox>[data-baseweb="checkbox"] .st-af {
-	 font-size: x-large !important;
  }
 
 .appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(8)>.stCheckbox {
@@ -75,12 +71,16 @@ label[class*="css-"] {
 	    text-shadow: 0 -1px 0 rgb(0 0 0 / 20%), 0 1px 0 rgb(255 255 255 / 20%);
   }
 
- [data-testid="stSidebar"] div:last-child>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"] {
-	 width: 30px !important;
-	 height: 30px !important;
+.appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(8)>.stCheckbox>[data-baseweb="checkbox"] [aria-checked="true"] {
+	 width: 1.5em !important;
+	 height: 1.5em !important;
 	 background-color: #3c8c17;
 	 border-color: #3c8c17;
 
+ }
+
+ .streamlit-expanderHeader {
+	 font-weight: 600;
  }
 
  .table-borderless tbody+tbody,
@@ -149,6 +149,9 @@ header[data-testid='stHeader'] {
 
 .stApp {
 	background:#e7dcff;
+    border-style: solid;
+    border-width: 0 calc(50vw - 40em) 0 calc(50vw - 40em);
+    border-color: black;
 }
 
 .appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] .element-container:nth-child(3) > .stMarkdown > [data-testid="stMarkdownContainer"] {
@@ -188,4 +191,3 @@ header[data-testid='stHeader'] {
 		 float: left;
 	 }
  }
-
