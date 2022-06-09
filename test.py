@@ -5,21 +5,19 @@ from os import makedirs
 from pathlib import Path
 from fastai.metrics import accuracy
 from fastai.vision import ImageDataBunch, cnn_learner, models
-import streamlit as st
 
 path = 'images_custom'
-makedirs(f"{path}/train", exist_ok=True)
-Path(f"{path}/train/dummy.jpg").touch(exist_ok=True)
 
 # Load the data and predict Operon-pairs
-_data = ImageDataBunch.from_folder('images_ecoli', test='test_operons/')
 
 # Load the model
-@st.cache()
-def get_learn():
+def get_learn(path):
+    makedirs(f"{path}/train", exist_ok=True)
+    Path(f"{path}/train/dummy.jpg").touch(exist_ok=True)
+    _data = ImageDataBunch.from_folder('images_ecoli', test='test_operons/')
     return cnn_learner(_data, models.resnet18, metrics=accuracy).load('best511')
 
-learn = get_learn()
+learn = get_learn(path)
 
 def predictor(idx: int, data: ImageDataBunch) -> tuple[float]:
     p = learn.predict(data.test_ds[idx][0])
