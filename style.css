@@ -161,34 +161,31 @@ header[data-testid='stHeader'] {
 	margin: 0 -1em 0 -1em;
 }
 
-@media (min-width: 50em) {
-	 img[alt="operon-logo"] {
-		 height: 10em;
-		 margin: 0em 0em 1em 0em;
-	 }
-	 img[alt="iitg-logo"] {
-		 height: 10em;
-		 float: right;
-		 margin: 0em 1em 0em 1em;
-	 }
-	 img[alt="lab-logo"] {
-		 height: 10em;
-		 float: left;
-		 margin: 0em 1em 0em 1em;
-	 }
+
+ img[alt="operon-logo"] {
+	 height: 10em;
+	 margin: 0.6em 0em 1em 0em;
+ }
+ img[alt="iitg-logo"] {
+	 height: 10em;
+	 float: right;
+	 margin: 0.6em 1em 0em 0em;
+ }
+ img[alt="lab-logo"] {
+	 height: 10em;
+	 float: left;
+	 margin: 0.6em 0em 0em 1em;
  }
 
-@media (max-width: 50em) {
+@media (max-width: 70em) {
 	 img[alt="operon-logo"] {
-		 width: 60%;
+		 height: 14vw;
 	 }
 	 img[alt="lab-logo"] {
-		 width: 20%;
-		 float: right;
+		 height: 14vw;
 	 }
 	 img[alt="iitg-logo"] {
-		 width: 20%;
-		 float: left;
+		 height: 14vw;
 	 }
  }
 
