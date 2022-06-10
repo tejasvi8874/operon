@@ -106,19 +106,19 @@ def get_operons(genome_id:str) -> dict[str, float]:
 
                 predict_json.write_text(dumps(operons))
 
-                email_dir = get_email_alerts_dir_path(genome_id)
-                if email_dir.exists():
-                    logger.info("Sending email")
-                    for b64_validated_email_path in email_dir.iterdir():
-                        recipient = b64decode(b64_validated_email_path.name.encode()).decode()
-                        send_alert_background(recipient, genome_id, None)
-                        b64_validated_email_path.unlink()
-                        logger.info(f"Sent to email {recipient}")
-
                 logger.info("bye")
-                return operons
         except PidFileError:
             sleep(0.1)
+        else:
+            email_dir = get_email_alerts_dir_path(genome_id)
+            if email_dir.exists():
+                logger.info("Sending email")
+                for b64_validated_email_path in email_dir.iterdir():
+                    recipient = b64decode(b64_validated_email_path.name.encode()).decode()
+                    send_alert_background(recipient, genome_id, None)
+                    b64_validated_email_path.unlink()
+                    logger.info(f"Sent to email {recipient}")
+            return operons
     raise PidFileError
 
 

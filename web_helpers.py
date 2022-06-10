@@ -41,12 +41,16 @@ def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
                 try:
                     validated_email = validate_email(email).email
                 except EmailNotValidError as e:
-                    placeholder.error(f"Invalid email address\n\n{e}")
+                    stpl().error(f"Invalid email address\n\n{e}")
                 else:
                     alert_dir = get_email_alerts_dir_path(genome_id)
                     alert_dir.mkdir(parents=True, exist_ok=True)
-                    alert_dir.joinpath(b64encode(validated_email.encode()).decode()).touch(exist_ok=True)
-                    stpl().success(f"On completion the email alert will be sent to {validated_email}. Make sure to check the junk/spam folder.")
+                    email_filename_bytes = b64encode(validated_email.encode())
+                    if len(email_filename_bytes) > 255: # Filename length limit on ext, ntfs, etc. Email length limit 64@255
+                        stpl().error("Please use another shorter email address.")
+                    else:
+                        alert_dir.joinpath(email_filename_bytes.decode()).touch(exist_ok=True)
+                        stpl().success(f"On completion the email alert will be sent to {validated_email}. Make sure to check the junk/spam folder.")
             progress_file = get_operon_progress_path(genome_id)
             if not progress_file.exists():
                 progress_file.write_text(str(0.01))

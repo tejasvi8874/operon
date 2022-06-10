@@ -34,7 +34,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     string = {} 
     for match in string_pat.finditer(decompress(get_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
         g1, g2, score = match.groups()
-        r1, r2 = [string_refseq_obj.get_refseq(g, refseq_order_pid) for g in (g1, g2)]
+        r1, r2 = [string_refseq_obj.get_refseq(g) for g in (g1, g2)]
         if r1 and r2 and (refseq_order_pid[r1][0] + 1 == refseq_order_pid[r2][0]):
             string[f"fig|{genome_id}.peg.{refseq_order_pid[r1][1]}"] = float(score)/1000
 

@@ -52,6 +52,7 @@ def save_trigger():
 Thread(target=save_trigger, daemon=True).start()
 
 sl = species_list(bacteria_not_archaea)
+print(len(sl), "organisms")
 sync = 0
 if sync:
     for s in sl:

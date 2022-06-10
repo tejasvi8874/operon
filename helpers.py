@@ -201,7 +201,7 @@ prokaryote_pat = re.compile(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", re.MULT
 archaea_pat = re.compile(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tArchaea$", re.MULTILINE)
 
 def species_list(bacteria_not_archaea) -> list[tuple[str, str]]:
-    species_list_path = Path(".json_files/species.json")
+    species_list_path = Path(f'.json_files/{"species" if bacteria_not_archaea else "species_archaea"}.json')
     if species_list_path.is_file():
         return loads(species_list_path.read_bytes())
     # Considering only Bacteria for now. Archaea might work too.
