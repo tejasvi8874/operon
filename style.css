@@ -191,3 +191,10 @@ header[data-testid='stHeader'] {
 		 float: left;
 	 }
  }
+
+.appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > .element-container > .row-widget.stCheckbox > label[data-baseweb="checkbox"] {
+	 border-style: solid;
+	 width: fit-content;
+	 background: rgb(210 190 255);
+ }
+

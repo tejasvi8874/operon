@@ -350,7 +350,7 @@ if submit:
 
             contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
             if contain_keyword:
-                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"]).lower())
+                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"][:2]).lower())
                 keywords = query_keywords(desc_keyword_txt)
 
             body: list[str] = []
@@ -434,19 +434,16 @@ if submit:
                     break
 
             if detailed:
-                c1, _, c2, _ = st.columns([0.05, 0.875, 0.05, 0.025])
-                with c1:
-                    show_dna = st.button("DNA", key=operon_num)
-                if show_dna:
-                    start = gene_locations[min(dfx.index)].start-1
-                    end = gene_locations[max(dfx.index)].end
+                if st.checkbox("DNA", key=operon_num):
+                    start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=operon_num)
+                    start = gene_locations[start_idx].start-1
+                    end = gene_locations[end_idx].end
                     # https://www.patricbrc.org/view/Genome/511145.12#view_tab=browser&loc=NC_000913%3A63298..63391&tracks=refseqs%2CRefSeqGenes&highlight=
                     fasta = loads(get_output(
                         f"https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{sequence_accession_id}?reference_sequences_only=false&start={gene_locations[min(dfx.index)].start-1}&end={gene_locations[max(dfx.index)].end}"
                         ))["features"][0]["seq"][:end-start]
-                    with c2:
-                        st.download_button(label='📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=operon_num, data=fasta)
                     components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
+                    st.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=operon_num, data=fasta)
     else:
         st.error(f"No matching clusters found")
 
