@@ -172,6 +172,7 @@ st.markdown('''
     <img alt="lab-logo" src="https://gistcdn.githack.com/tejasvi8874/79d777264bf5d66f80ca3fd02f509b8d/raw/b01e6015f989263c608b1d3b6bb0c9de0e9f9530/lab-logo.svg">
     <img alt="operon-logo" src="https://gistcdn.githack.com/tejasvi8874/79d777264bf5d66f80ca3fd02f509b8d/raw/a5b80c86ba31b40c64f2c5409dda105992ce43bc/operon-logo.svg">
     <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
+    <center><h4>Prokaryotic Operon Prediction Web Server</h4></center>
     ''', unsafe_allow_html=True)
 
 manual = "Specify genome ID"
