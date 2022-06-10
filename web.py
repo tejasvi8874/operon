@@ -205,7 +205,7 @@ if genome_id_option == search:
             sample_organisms[ genome_name ] = p.parent.name, p.parent.name.split('.')[0]
         sample_organisms = dict(sorted(sample_organisms.items()))
         for species_name, genome_ids in valid_organisms():
-            a_genome_id = genome_ids.pop()
+            a_genome_id = next(iter(genome_ids)) # Don't uneccessarily mutate the variable with set.pop. Here the ret value is cached so errors on next run
             if a_genome_id == '224911.5':
                 continue
             sample_organisms.setdefault(species_name, (a_genome_id, a_genome_id.split('.')[0]))
