@@ -179,7 +179,7 @@ def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
 normalize_refseq = str.lower
 
 def get_prefix_counter(string):
-        assert not (string and string[-1].isdigit()), "num suffix required"
+        assert not (string and string[-1].isdigit()), f"num suffix required. Got {repr(string)}"
         digits = []
         dot_seen = False
         for c in reversed(string):
