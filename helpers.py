@@ -80,7 +80,7 @@ def to_pid( genome_id: str) -> PidData:
 
     gene_locations = {}
     full_data = {}
-    assert feature_data
+    assert feature_data, f"No data for {genome_id}"
     refseq_locus_tag_present = False
     used_stripped_numeric_refseqs = {normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None")).rstrip(ascii_letters) for feature in feature_data}
     used_stripped_numeric_refseqs.discard("") # If no numbers in there. E.g. https://www.patricbrc.org/view/Genome/214092.191#view_tab=features
@@ -167,8 +167,8 @@ def stringdb_aliases(genome_organism_id) -> str:
     if path.exists():
         return path.read_text()
     aliases = decompress(get_output(f"https://stringdb-static.org/download/protein.aliases.v11.5/{genome_organism_id}.protein.aliases.v11.5.txt.gz")).decode()
-    #TODO: Handle saving?
-    #path.write_text(aliases)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(aliases)
     return aliases
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
@@ -325,3 +325,69 @@ def send_alert(dest_email, genome_id, err_msg):
 
     logger.info("Sent!")
 
+
+class StringRefseq:
+    def __init__(self, genome_id):
+        self.refseq_order_pid = self._get_refseq_order_pid(genome_id)
+
+        organism = genome_id.split('.')[0]
+        self.string_id_n_refseq_map = {}
+        for string_id, n_refseq in string_id_n_refseq_pairs(organism):
+            self.string_id_n_refseq_map.setdefault(string_id, set()).add(n_refseq)
+
+    def _get_possible_refseqs(self, string_id) -> set[str]:
+        if string_id in self.string_id_n_refseq_map:
+                return self.string_id_n_refseq_map[string_id]
+        # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
+        num_suffixed_string_id = string_id.rstrip(ascii_letters)
+        if num_suffixed_string_id:
+            prefix, counter = get_prefix_counter(num_suffixed_string_id)
+            for delta in (-1, 1):
+                    test_string_id = prefix + str(counter + delta)
+                    if test_string_id in self.string_id_n_refseq_map:
+                        return {r_prefix + str(r_counter - delta)
+                                for test_refseq in self.string_id_n_refseq_map[test_string_id]
+                                if (num_suffixed_test_refseq := test_refseq.rstrip(ascii_letters))
+                                for r_prefix, r_counter in [get_prefix_counter(num_suffixed_test_refseq)]}
+        # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
+        return {normalize_refseq(string_id)}
+
+    def get_refseq(self, string_id) -> Optional[str]:
+        # patric genome removes '_' from 'MAP_0001'
+        # Refseq doesn't stay valid after _ removal everytime
+        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
+        # invalid https://www.ncbi.nlm.nih.gov/refseq/?term=b2100002
+        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=b21_00002
+        for s in (string_id, string_id.replace('_', '')):
+            if refseqs := self._get_possible_refseqs(s).intersection(self.refseq_order_pid):
+                return refseqs.pop()
+
+    @staticmethod
+    def _get_refseq_order_pid(genome_id):
+        pid_data = to_pid(genome_id)
+        full_data = pid_data.full_data
+        locations = pid_data.gene_locations
+
+        refseq_order_pid = {gene.n_refseq: (order, pid)
+            for order, (pid, gene) in
+            enumerate(sorted(
+                    full_data.items(),
+                    key=lambda pid_gene: locations[pid_gene[0]]))}
+        return refseq_order_pid
+
+uniprot_id_pat = re.compile(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_AC$", re.MULTILINE)
+def get_pid_uniprot_map(genome_id):
+    string_refseq_obj = StringRefseq(genome_id)
+    organism_id = genome_id.split('.')[0]
+
+    valid_refseqs = {gene.n_refseq for gene in to_pid(genome_id).full_data.values()}
+
+    pid_uniprot_map = {}
+
+    for match in uniprot_id_pat.finditer(stringdb_aliases(organism_id)):
+        string_id, uniprot_id = match.groups()
+        if refseq := string_refseq_obj.get_refseq(string_id):
+            patric_id = string_refseq_obj.refseq_order_pid[refseq][1]
+            pid_uniprot_map[patric_id] = uniprot_id
+
+    return pid_uniprot_map

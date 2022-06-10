@@ -49,7 +49,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms, logger
+from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms, logger, get_pid_uniprot_map
 from pathlib import Path
 import shlex
 import subprocess
@@ -279,7 +279,7 @@ if genome_id:
             "This genome is not supported. Try searching for the organism name instead."
         )
     df = pd.DataFrame.from_dict(
-        full_data, orient="index", columns=["RefSeq", "Description", "Protein ID"]
+        full_data, orient="index", columns=["RefSeq", "Description", "Protein"]
     )
     df.index = df.index.astype(int)
     df = df.sort_index()
@@ -291,6 +291,10 @@ if genome_id:
 
 if submit:
     probs = operon_probs(genome_id, len(full_data))
+    if pid_uniprot_map := get_pid_uniprot_map(genome_id):
+        df["UniProt"] = pd.Series(pid_uniprot_map)
+    df["Confidence"] = pd.Series(probs)
+    df["Intergenic distance"] = pd.Series([None]*len(df.index))
 
     operons = []
     with st.expander("Filter operons", True):
@@ -304,8 +308,6 @@ if submit:
         )
 
         clusters = operon_clusters(list(full_data.keys()), min_prob, probs)
-        df["Confidence"] = pd.Series(probs)
-        df["Intergenic distance"] = pd.Series([None]*len(df.index))
 
         # clusters = [{998, 999, 1002}, {1001, 1002, 1003}, {1006, 1007}, {999, 1002, 1010, 1011, 1012}]
 
@@ -409,12 +411,15 @@ if submit:
                             + ("<br><a style='text-decoration: none;' target='_self' href='javascript:alert(" + approximation_note + ")'><span title=" + approximation_note + ">⚠️</span></a>" if r in approximated_refseqs else '')
                         }"""
             )
-            render_dfx["Protein ID"] = dfx["Protein ID"].apply(
+            render_dfx["Protein"] = dfx["Protein"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
             )
+            render_dfx["UniProt"] = dfx["UniProt"].apply(
+                lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{r}</a>'
+            )
             if not detailed:
-                del render_dfx["Confidence"]
-                del render_dfx["Intergenic distance"]
+                for c in ["Confidence", "Intergenic distance", "UniProt"]:
+                    del render_dfx[c]
             st.write(
                 render_dfx.to_html(
                     justify="center",

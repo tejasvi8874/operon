@@ -4,9 +4,6 @@ html, body, [class*="css"], [class*="st-"] {
 label[class*="css-"], [class*="st-"], p, [class*=".css-"] {
 	font-size: 1.5rem;
 }
-td, th {
-	font-size: 1.05rem !important;
-}
 
 [style*="width: 504px;"] {
 	width: 1000px;
@@ -88,38 +85,43 @@ label[class*="css-"] {
  .table-borderless th,
  .table-borderless thead th {
    border: 0;
-   font-size: 0.8rem;
    text-align: center;
  }
 
  .table-borderless td:nth-child(1),
  .table-borderless th:nth-child(1) {
-   width: 5%;
-   max-width: 5%;
+   width: 2em;
+   max-width: 2em;
  }
 
  .table-borderless td:nth-child(2),
  .table-borderless th:nth-child(2) {
-   width: 10%;
-   max-width: 10%;
+   width: 7em;
+   max-width: 7em;
+ }
+
+ .table-borderless td:nth-last-child(4),
+ .table-borderless th:nth-last-child(4) {
+   width: 8em;
+   max-width: 8em;
  }
 
  .table-borderless td:nth-last-child(3),
  .table-borderless th:nth-last-child(3) {
-   width: 15%;
-   max-width: 15%;
+   width: 7em;
+   max-width: 7em;
  }
 
  .table-borderless td:nth-last-child(2),
  .table-borderless th:nth-last-child(2) {
-   width: 10%;
-   max-width: 10%;
+   width: 7em;
+   max-width: 7em;
  }
 
  .table-borderless td:nth-last-child(1),
  .table-borderless th:nth-last-child(1) {
-   width: 15%;
-   max-width: 15%;
+   width: 7em;
+   max-width: 7em;
  }
 
  .table-borderless {

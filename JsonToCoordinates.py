@@ -1,7 +1,7 @@
 from concurrent.futures import ProcessPoolExecutor
 from string import ascii_letters
 from gzip import decompress
-from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter, logger
+from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter, logger, StringRefseq
 import multiprocessing
 import json
 from tempfile import NamedTemporaryFile
@@ -24,56 +24,19 @@ random.seed(7)
 random.shuffle(colors)
 
 import re
+
+string_pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
 def parse_string_scores(genome_id: str)->dict[str,float]:
-    pid_data = to_pid(genome_id)
-    full_data = pid_data.full_data
-    locations = pid_data.gene_locations
-
-    refseq_idx_pid = {gene.n_refseq: (i, pid)
-        for i, (pid, gene) in
-        enumerate(sorted(
-                full_data.items(),
-                key=lambda pid_gene: locations[pid_gene[0]]))}
-    string = {} 
-         
+    string_refseq_obj = StringRefseq(genome_id)
+    refseq_order_pid = string_refseq_obj.refseq_order_pid
     organism = genome_id.split('.')[0]
-    pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
 
-    string_id_n_refseq_map = {}
-    for string_id, n_refseq in string_id_n_refseq_pairs(organism):
-        string_id_n_refseq_map.setdefault(string_id, set()).add(n_refseq)
-
-    def get_refseq(string_id):
-        if string_id in string_id_n_refseq_map:
-                return string_id_n_refseq_map[string_id]
-        # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
-        num_suffixed_string_id = string_id.rstrip(ascii_letters)
-        if num_suffixed_string_id:
-            prefix, counter = get_prefix_counter(num_suffixed_string_id)
-            for delta in (-1, 1):
-                    test_string_id = prefix + str(counter + delta)
-                    if test_string_id in string_id_n_refseq_map:
-                        return {r_prefix + str(r_counter - delta)
-                                for test_refseq in string_id_n_refseq_map[test_string_id]
-                                if (num_suffixed_test_refseq := test_refseq.rstrip(ascii_letters))
-                                for r_prefix, r_counter in [get_prefix_counter(num_suffixed_test_refseq)]}
-        # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
-        return {normalize_refseq(string_id)}
-
-    for g1, g2, score in pat.findall(decompress(get_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
-        # patric genome removes '_' from 'MAP_0001'
-        # Refseq doesn't stay valid after _ removal everytime
-        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=map0001
-        # invalid https://www.ncbi.nlm.nih.gov/refseq/?term=b2100002
-        # valid https://www.ncbi.nlm.nih.gov/refseq/?term=b21_00002
-        for cg1, cg2 in ((g1, g2), (g1.replace('_', ''), g2.replace('_', ''))):
-            r1s = get_refseq(cg1).intersection(refseq_idx_pid)
-            r2s = get_refseq(cg2).intersection(refseq_idx_pid)
-            if r1s and r2s:
-                r1 = r1s.pop()
-                r2 = r2s.pop()
-                if refseq_idx_pid[r1][0] + 1 == refseq_idx_pid[r2][0]:
-                    string[f"fig|{genome_id}.peg.{refseq_idx_pid[r1][1]}"] = float(score)/1000
+    string = {} 
+    for match in string_pat.finditer(decompress(get_output(f"https://stringdb-static.org/download/protein.links.v11.5/{organism}.protein.links.v11.5.txt.gz")).decode()):
+        g1, g2, score = match.groups()
+        r1, r2 = [string_refseq_obj.get_refseq(g, refseq_order_pid) for g in (g1, g2)]
+        if r1 and r2 and (refseq_order_pid[r1][0] + 1 == refseq_order_pid[r2][0]):
+            string[f"fig|{genome_id}.peg.{refseq_order_pid[r1][1]}"] = float(score)/1000
 
     assert string
     logger.info("Parsed STRING scores")
