@@ -458,7 +458,7 @@ Tejasvi Singh Tomar, Pratik Dasgupta, and Shankar Prasad Kanaujia<br>
 Indian Institute of Technology - Guwahati<br>
 Copyright Ⓒ 2022 Operon Finder <br>
 </b>
-<img src="https://hitwebcounter.com/counter/counter.php?page=7999301&style=0005&nbdigits=5&type=page&initCount=100" title="Free Counter" Alt="web counter"   border="0" /><br>
+<img src="https://hitwebcounter.com/counter/counter.php?page=7999301&style=0005&nbdigits=5&type=page&initCount=0" title="Free Counter" Alt="web counter"   border="0" /><br>
 Visitor count
 </center>''', unsafe_allow_html=True)
 
