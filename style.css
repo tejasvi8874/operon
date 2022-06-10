@@ -161,7 +161,7 @@ header[data-testid='stHeader'] {
 	margin: 0 -1em 0 -1em;
 }
 
-@media (min-width: 40em) {
+@media (min-width: 50em) {
 	 img[alt="operon-logo"] {
 		 height: 10em;
 		 margin: 0em 0em 1em 0em;
@@ -178,7 +178,7 @@ header[data-testid='stHeader'] {
 	 }
  }
 
-@media (max-width: 40em) {
+@media (max-width: 50em) {
 	 img[alt="operon-logo"] {
 		 width: 60%;
 	 }
