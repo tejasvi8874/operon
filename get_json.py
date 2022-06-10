@@ -54,7 +54,7 @@ def get_operons_background_process(genome_id:str):
 
 
 def get_operons(genome_id:str) -> dict[str, float]:
-    for _ in range(3):
+    for _ in range(10):
         try:
             with PidFile('.lock_'+genome_id):
                 listen_pdb(40000)

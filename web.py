@@ -302,7 +302,7 @@ if submit:
         # clusters = [{998, 999, 1002}, {1001, 1002, 1003}, {1006, 1007}, {999, 1002, 1010, 1011, 1012}]
 
         min_len = min((len(c) for c in clusters), default=0)
-        max_len = max((len(c) for c in clusters), default=0)
+        max_len = max(max((len(c) for c in clusters), default=0), min_len+1) # Streamlit throws error in range slider with equal min and max
 
         cluster_size_range = 1, float("inf")
         must_pegs: set[int] = set()
