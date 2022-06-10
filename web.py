@@ -425,7 +425,7 @@ if submit:
                 ),
                 unsafe_allow_html=True,
             )
-            if i >= 20 and not show_all:
+            if i >= 10 and not show_all:
                 st.markdown("---")
                 show_all = st.checkbox(
                     f"Show remaining {len(operons) - i - 1} operons", value=False
