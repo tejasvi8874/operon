@@ -29,6 +29,7 @@ import smtplib
 import codecs
 from os import environ
 from email.message import EmailMessage
+from email.utils import formataddr
 
 
 import logging
@@ -300,31 +301,30 @@ def logged_background(*, is_process, target, args):
         try:
             target(*a)
         except:
-            err_msg = traceback.format_exc()
-            logger.critical(err_msg)
+            logger.critical(traceback.format_exc())
             if environ.get('PROD'):
-                send_alert_background(error_email, genome_id, err_msg)
+                send_alert_background(error_email, genome_id, True)
             raise
     (Process if is_process else Thread)(target=wrap_target, args=args).start()
 
 source_email = codecs.encode('fcxyno.vvgt@tznvy.pbz', 'rot_13')
 error_email = codecs.encode('gfgbzne@bhgybbx.pbz', 'rot_13')
 
-def send_alert_background(dest_email, genome_id, err_msg):
-    logged_background(is_process=False, target=send_alert, args=(dest_email, genome_id, err_msg))
+def send_alert_background(dest_email, genome_id, is_err):
+    logged_background(is_process=False, target=send_alert, args=(dest_email, genome_id, is_err))
 
-def send_alert(dest_email, genome_id, err_msg):
+def send_alert(dest_email, genome_id, is_err):
     logger.info("Attempt email Send")
 
     msg = EmailMessage()
-    msg['From'] = source_email
-    msg['Subject'] = 'Operon Finder task completed'
+    msg['From'] = formataddr(("Operon Finder", source_email))
+    msg['Subject'] = f'Operon prediction task completed for the genome id{genome_id}'
     msg['To'] = ', '.join([dest_email,])
 
-    msg.set_content(f'Error with {genome_id}' if err_msg else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://www.iitg.ac.in/spkanaujia/operonfinder.html?genome_id={83332.12}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
+    msg.set_content(f'Error with operon prediction for {genome_id}.' if is_err else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://www.iitg.ac.in/spkanaujia/operonfinder.html?genome_id={genome_id}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login(source_email, environ.get('EMAIL_PASSWORD'))
+        smtp.login(source_email, environ['EMAIL_PASSWORD'])
         smtp.send_message(msg)
 
     logger.info("Sent!")
