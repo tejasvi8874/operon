@@ -163,6 +163,7 @@ def get_session():
         return sessions[get_ident()]
 
 def stringdb_aliases(genome_organism_id) -> str:
+    # string_id may be prefixed by gene: Discard it where-ever its used
     path = Path(f'.json_files/alias/{genome_organism_id}.txt')
     if path.exists():
         return path.read_text()
@@ -174,7 +175,7 @@ def stringdb_aliases(genome_organism_id) -> str:
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
     for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
         string_id, refseq1, refseq2 = match.groups()
-        yield string_id, normalize_refseq(refseq1 or refseq2) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
+        yield string_id.lstrip('gene:'), normalize_refseq(refseq1 or refseq2) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
 
 normalize_refseq = str.lower
 
@@ -196,12 +197,15 @@ def get_prefix_counter(string):
             raise Exception(f"Can't get prefix of {string}")
         return string[:-len(digits)], (float if dot_seen else int)(''.join(reversed(digits)))
 
-def species_list() -> list[tuple[str, str]]:
+prokaryote_pat = re.compile(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", re.MULTILINE)
+archaea_pat = re.compile(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tArchaea$", re.MULTILINE)
+
+def species_list(bacteria_not_archaea) -> list[tuple[str, str]]:
     species_list_path = Path(".json_files/species.json")
     if species_list_path.is_file():
         return loads(species_list_path.read_bytes())
     # Considering only Bacteria for now. Archaea might work too.
-    species = sorted(re.findall(r"^(\d+)\t\S+\t[^\t]+\t([^\t]+)\tBacteria$", get_output("https://stringdb-static.org/download/species.v11.5.txt").decode(), re.MULTILINE))
+    species = sorted((prokaryote_pat if bacteria_not_archaea else archaea_pat).findall(get_output("https://stringdb-static.org/download/species.v11.5.txt").decode()))
     species_list_path.write_text(dumps(species))
     return species
 
@@ -386,6 +390,7 @@ def get_pid_uniprot_map(genome_id):
 
     for match in uniprot_id_pat.finditer(stringdb_aliases(organism_id)):
         string_id, uniprot_id = match.groups()
+        string_id = string_id.removeprefix('gene:')
         if refseq := string_refseq_obj.get_refseq(string_id):
             patric_id = string_refseq_obj.refseq_order_pid[refseq][1]
             pid_uniprot_map[patric_id] = uniprot_id

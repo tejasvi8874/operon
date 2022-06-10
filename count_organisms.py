@@ -1,4 +1,4 @@
-from helpers import species_list, curl_output, string_id_n_refseq_pairs, stringdb_aliases, get_session, get_genome_id
+from helpers import species_list, string_id_n_refseq_pairs, get_session, get_genome_id
 from threading import get_ident, Thread
 from queue import SimpleQueue, Empty
 import requests
@@ -12,7 +12,8 @@ import pickle
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-data_path = Path('count_organisms.pkl')
+bacteria_not_archaea = False
+data_path = Path('count_organisms.pkl' if bacteria_not_archaea else 'count_organisms_archaea.pkl')
 if data_path.exists():
     with open(data_path, 'rb') as f:
         full_data = pickle.load(f)
@@ -38,7 +39,7 @@ def f(genome_organism_id, organism_selection):
             print("Couldn't find", organism_selection, genome_organism_id, file=sys.stderr)
         full_data.setdefault("errors", {}).pop(organism_selection, None)
     except Exception as e:
-        print("exception", organism_selection, e)
+        print("exception", organism_selection, genome_organism_id, e)
         full_data.setdefault("errors", {})[organism_selection] = str(e)
 
 def saver():
@@ -50,7 +51,7 @@ def save_trigger():
         sleep(5)
 Thread(target=save_trigger, daemon=True).start()
 
-sl = species_list()
+sl = species_list(bacteria_not_archaea)
 sync = 0
 if sync:
     for s in sl:
