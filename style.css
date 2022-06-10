@@ -76,6 +76,10 @@ label[class*="css-"] {
 
  }
 
+ .appview-container > section > .block-container > div > [data-testid="stVerticalBlock"] > div:nth-child(8) > .row-widget.stButton > button {
+	 padding: 0.5rem 1.5rem;
+ }
+
  .streamlit-expanderHeader {
 	 font-weight: 600;
  }

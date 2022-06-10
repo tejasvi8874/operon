@@ -399,7 +399,7 @@ if submit:
                         "text/tab-separated-values"
                     )
             components.html(html, height=0)
-        st.button(f"Save results", on_click=download)
+        st.button(f"Save results 📥", on_click=download)
 
         show_all = False
         for i, (operon_num, dfx) in enumerate(operons):
