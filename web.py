@@ -78,6 +78,16 @@ downloadBase64File(`{b64encode(byte_data).decode()}`, `{file_name}`, `{mime_type
 def reset_submit():
     st.session_state['submit_key'] = False
 
+def reset_query_genome_id():
+    cur_param = st.experimental_get_query_params()
+    cur_param.pop("genome_id", None)
+    st.experimental_set_query_params(**cur_param)
+
+def reset_submit_query_genome_id():
+    reset_submit()
+    reset_query_genome_id()
+
+
 if "shell" in st.experimental_get_query_params():
 
     def run_command(args):
@@ -178,9 +188,7 @@ if streamlit_cloud:
 
 
 query_genome_id = st.experimental_get_query_params().get("genome_id", [None])[0]
-if query_genome_id:
-    st.experimental_set_query_params()
-genome_id_option = st.radio("Select genome", (search, manual), index=(1 if query_genome_id else 0), on_change=reset_submit)
+genome_id_option = st.radio("Select genome", (search, manual), index=(1 if query_genome_id else 0), on_change=reset_submit_query_genome_id)
 
 if genome_id_option == search:
         sample_organisms = defaultdict(lambda: (None, None))
@@ -206,7 +214,7 @@ if genome_id_option == search:
         # if not streamlit_cloud:
         #     ...
         organism_selection = st.selectbox(
-            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query", on_change=reset_submit
+            "Choose organism", sample_organisms, index=0, help="Press Backspace key to change search query", on_change=reset_submit_query_genome_id
         )
         genome_id, genome_organism_id = sample_organisms[organism_selection]
 
@@ -225,7 +233,7 @@ else:
         "Genome ID",
         query_genome_id or "262316.17",
         help="Must be available in PATRIC and STRING databases.",
-        on_change=reset_submit
+        on_change=reset_submit_query_genome_id
     ).strip()
     if re.match(r"\d+\.\d+", genome_id):
         try:
