@@ -21,6 +21,7 @@ components.html( """
         );
     </script>""", height=0) 
 
+from copy import deepcopy
 from getpass import getuser
 from gzip import decompress
 from io import TextIOWrapper
@@ -403,19 +404,20 @@ if submit:
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             approximation_note = '"Approximate RefSeq assignment"'
-            dfx["RefSeq"] = dfx["RefSeq"].apply(
+            render_dfx = deepcopy(dfx)
+            render_dfx["RefSeq"] = dfx["RefSeq"].apply(
                     lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>"
                             + ("<br><a style='text-decoration: none;' target='_self' href='javascript:alert(" + approximation_note + ")'><span title=" + approximation_note + ">⚠️</span></a>" if r in approximated_refseqs else '')
                         }"""
             )
-            dfx["Protein ID"] = dfx["Protein ID"].apply(
+            render_dfx["Protein ID"] = dfx["Protein ID"].apply(
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
             )
             if not detailed:
-                del dfx["Confidence"]
-                del dfx["Intergenic distance"]
+                del render_dfx["Confidence"]
+                del render_dfx["Intergenic distance"]
             st.write(
-                dfx.to_html(
+                render_dfx.to_html(
                     justify="center",
                     escape=False,
                     classes=["table-borderless"],
@@ -424,7 +426,6 @@ if submit:
                 ),
                 unsafe_allow_html=True,
             )
-            # st.table(dfx)
             if i >= 20 and not show_all:
                 st.markdown("---")
                 show_all = st.checkbox(
