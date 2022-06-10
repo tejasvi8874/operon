@@ -434,7 +434,9 @@ if submit:
                     break
 
             if detailed:
-                if st.checkbox("DNA", key=operon_num):
+                with st.columns([1])[0]:
+                    show_dna = st.checkbox("DNA", key=operon_num)
+                if show_dna:
                     start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=operon_num)
                     start = gene_locations[start_idx].start-1
                     end = gene_locations[end_idx].end
