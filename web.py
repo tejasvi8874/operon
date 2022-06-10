@@ -328,7 +328,7 @@ if submit:
 
             refseq_help = "Comma separated RefSeq IDs"
             refseq_input_label = "Comma separated RefSeq IDs"
-            refseq_prefill = ', '.join(df.loc[list(clusters[0]), "RefSeq"]).upper()
+            refseq_prefill = ', '.join(df.loc[iter(clusters[0]), "RefSeq"]).upper()
             
             contain_all = st.checkbox("All of the genes",help=refseq_help)
             if contain_all:
@@ -350,8 +350,9 @@ if submit:
 
             contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
             if contain_keyword:
-                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[list(clusters[0]), "Description"]).lower())
+                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"]).lower())
                 keywords = query_keywords(desc_keyword_txt)
+                st.write(keywords)
 
             body: list[str] = []
             for i, cluster in enumerate(clusters):
@@ -364,12 +365,7 @@ if submit:
                     )
                     and (
                         not keywords
-                        or any(
-                            [
-                                all(s in full_data[j].desc.lower() for s in keywords)
-                                for j in cluster
-                            ]
-                        )
+                        or keywords.issubset(query_keywords(' '.join(df.loc[iter(cluster), "Description"]).lower()))
                     )
                 ):
                     continue
