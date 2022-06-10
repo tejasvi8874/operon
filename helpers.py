@@ -62,12 +62,11 @@ def get_output(url)->bytes:
     return resp.content
 
 
-PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id'])
+PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id', 'sequence_accession_id'])
 LocInfo = namedtuple('LocInfo', ['start', 'end'])
 
 class PidData(NamedTuple):
     full_data: tuple[dict[int]]
-    sequence_accession_id: str
     gene_locations: dict[str, LocInfo]
     approximated_refseqs: Optional[list[str]]
     refseq_locus_tag_present: bool
@@ -125,16 +124,14 @@ def to_pid( genome_id: str) -> PidData:
         if desc_col_loc != -1:
             desc = desc[desc_col_loc + 2:]
 
+        # Different genes can have different accession ID (though rare) E.g. first operon of 1000565.3
         full_data[patric_id] = PatricMeta(
-            n_refseq=n_refseq, desc=desc, protein_id=protein_id
+            n_refseq=n_refseq, desc=desc, protein_id=protein_id, sequence_accession_id=feature["sequence_id"]
         )
 
         gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
 
-    # Different genes can have different accession ID (though rare) E.g. first and last gene of 798128.4
-    # Prioritize ID present in first gene.
-    sequence_accession_id = feature_data[0]["sequence_id"]
-    return PidData(full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present)
+    return PidData(full_data, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
 def query_keywords(query: str) -> set[str]:
     return {qs.lower() for qs in query.split(' ') if qs}

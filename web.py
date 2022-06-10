@@ -270,7 +270,7 @@ def br(times=1):
 if genome_id:
     br()
 
-    full_data, sequence_accession_id, gene_locations, approximated_refseqs, refseq_locus_tag_present = to_pid(genome_id)
+    full_data, gene_locations, approximated_refseqs, refseq_locus_tag_present = to_pid(genome_id)
     if not refseq_locus_tag_present:
         st.warning("The RefSeq approximations used for this genome might reduce the operon prediction accuracy due to absence of the corresponding annotations in the PATRIC database.")
     if not full_data:
@@ -279,7 +279,7 @@ if genome_id:
             "This genome is not supported. Try searching for the organism name instead."
         )
     df = pd.DataFrame.from_dict(
-        full_data, orient="index", columns=["RefSeq", "Description", "Protein"]
+        full_data, orient="index", columns=["RefSeq", "Description", "Protein", "SequenceAccession"]
     )
     df.index = df.index.astype(int)
     df = df.sort_index()
@@ -417,6 +417,7 @@ if submit:
             render_dfx["UniProt"] = dfx["UniProt"].apply(
                 lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{r}</a>'
             )
+            del render_dfx["SequenceAccession"]
             if not detailed:
                 for c in ["Confidence", "Intergenic distance", "UniProt"]:
                     del render_dfx[c]
@@ -445,9 +446,8 @@ if submit:
                     start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=operon_num)
                     start = gene_locations[start_idx].start-1
                     end = gene_locations[end_idx].end
-                    # https://www.patricbrc.org/view/Genome/511145.12#view_tab=browser&loc=NC_000913%3A63298..63391&tracks=refseqs%2CRefSeqGenes&highlight=
                     fasta = loads(get_output(
-                        f"https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{sequence_accession_id}?reference_sequences_only=false&start={gene_locations[min(dfx.index)].start-1}&end={gene_locations[max(dfx.index)].end}"
+                        f'https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{df["SequenceAccession"].iloc[start_idx]}?reference_sequences_only=false&start={gene_locations[start_idx].start-1}&end={gene_locations[end_idx].end}'
                         ))["features"][0]["seq"][:end-start]
                     components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
                     st.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=operon_num, data=fasta)

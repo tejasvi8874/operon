@@ -94,38 +94,32 @@ label[class*="css-"] {
 
  .table-borderless td:nth-child(1),
  .table-borderless th:nth-child(1) {
-   width: 2em;
-   max-width: 2em;
+   width: 4em;
  }
 
  .table-borderless td:nth-child(2),
  .table-borderless th:nth-child(2) {
-   width: 7em;
-   max-width: 7em;
+   width: 10em;
  }
 
  .table-borderless td:nth-last-child(4),
  .table-borderless th:nth-last-child(4) {
-   width: 8em;
-   max-width: 8em;
+   width: 9em;
  }
 
  .table-borderless td:nth-last-child(3),
  .table-borderless th:nth-last-child(3) {
    width: 7em;
-   max-width: 7em;
  }
 
  .table-borderless td:nth-last-child(2),
  .table-borderless th:nth-last-child(2) {
    width: 7em;
-   max-width: 7em;
  }
 
  .table-borderless td:nth-last-child(1),
  .table-borderless th:nth-last-child(1) {
    width: 7em;
-   max-width: 7em;
  }
 
  .table-borderless {
