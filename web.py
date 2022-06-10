@@ -352,7 +352,6 @@ if submit:
             if contain_keyword:
                 desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"]).lower())
                 keywords = query_keywords(desc_keyword_txt)
-                st.write(keywords)
 
             body: list[str] = []
             for i, cluster in enumerate(clusters):
