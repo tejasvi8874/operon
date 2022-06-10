@@ -465,7 +465,7 @@ Tejasvi Singh Tomar, Pratik Dasgupta, and Shankar Prasad Kanaujia<br>
 Guwahati - 781 039 Assam, India<br>
 Copyright Ⓒ 2022 Operon Finder <br>
 </b>
-Genome count: 8772<br>
+Genome count: 9140<br>
 <img src="https://hitwebcounter.com/counter/counter.php?page=8000876&style=0005&nbdigits=5&type=page&initCount=113" title="Free Counter" Alt="web counter"   border="0" /><br>
 Visitor count
 </center>''', unsafe_allow_html=True)

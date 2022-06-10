@@ -228,8 +228,10 @@ def get_genome_id(genome_organism_id) -> Optional[str]:
         if features:
             return features[0]["genome_id"]
 
+@lru_cache(1)
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
-    return [(name, genome_ids) for name, genome_ids in pickle.loads(Path('count_organisms.pkl').read_bytes())['data'].items() if genome_ids]
+    logger.critical("valid_organism")
+    return [(name, genome_ids) for pkl in ('count_organisms.pkl', 'count_organisms_archaea.pkl') for name, genome_ids in pickle.loads(Path(pkl).read_bytes())['data'].items() if genome_ids]
 
 
 def get_compare_region_json_path(genome_id):
