@@ -317,7 +317,7 @@ def send_alert(dest_email, genome_id, err_msg):
     msg['Subject'] = 'Operon Finder task completed'
     msg['To'] = ', '.join([dest_email,])
 
-    msg.set_content(f'Error with {genome_id}' if err_msg else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://apps.streamlitusercontent.com/tejasvi8874/operon/main/web.py/+/?genome_id={83332.12}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
+    msg.set_content(f'Error with {genome_id}' if err_msg else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://www.iitg.ac.in/spkanaujia/operonfinder.html?genome_id={83332.12}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(source_email, environ.get('EMAIL_PASSWORD'))
