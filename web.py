@@ -468,8 +468,8 @@ Copyright Ⓒ 2022 Operon Finder <br>
 </b>
 <a href="https://clustrmaps.com/site/1bowi" title="visitor map"><img src="//www.clustrmaps.com/map_v2.png?d=1laoCLUJldQlosO5bh73b689snhMb-hqnJynyQ_Ez5s&cl=ffffff"></a></br>
 Genome count: 9140<br>
-<!-- <img src="https://hitwebcounter.com/counter/counter.php?page=8000876&style=0005&nbdigits=5&type=page&initCount=113" title="Free Counter" Alt="web counter"   border="0" /><br> -->
-Visitor count
+<!-- <img src="https://hitwebcounter.com/counter/counter.php?page=8000876&style=0005&nbdigits=5&type=page&initCount=113" title="Free Counter" Alt="web counter"   border="0" /><br>
+Visitor count -->
 </center>''', unsafe_allow_html=True)
 
 # pr.disable()
