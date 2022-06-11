@@ -93,7 +93,7 @@ def to_pid( genome_id: str) -> PidData:
         patric_id = int(feature["patric_id"].split(".")[-1])
         refseq = feature.get("refseq_locus_tag") or feature.get("gene")
         refseq_locus_tag_present = refseq_locus_tag_present or "refseq_locus_tag" in feature
-        protein_id = feature.get("protein_id", "None")
+        protein_id = feature.get("protein_id", "")
 
         if refseq:
             n_refseq = normalize_refseq(refseq)
@@ -109,10 +109,9 @@ def to_pid( genome_id: str) -> PidData:
                     if n_refseq in used_stripped_numeric_refseqs: # Adjacent refseqs already assigned
                         continue
 
-                    if protein_id == "None":
-                        if adjacent_full_data.protein_id[-1].isdigit():
-                            protein_prefix, adjacent_protein_counter = get_prefix_counter(adjacent_full_data.protein_id)
-                            protein_id = protein_prefix + str(adjacent_protein_counter - delta)
+                    if not protein_id and adjacent_full_data.protein_id and adjacent_full_data.protein_id[-1].isdigit():
+                        protein_prefix, adjacent_protein_counter = get_prefix_counter(adjacent_full_data.protein_id)
+                        protein_id = protein_prefix + str(adjacent_protein_counter - delta)
                     approximated_refseqs.append(n_refseq)
                     break
             else:
