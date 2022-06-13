@@ -76,17 +76,15 @@ downloadBase64File(`{b64encode(byte_data).decode()}`, `{file_name}`, `{mime_type
 </script>
 </html>
 """
-def reset_submit():
-    st.session_state['submit_key'] = False
-
 def reset_query_genome_id():
     cur_param = st.experimental_get_query_params()
     cur_param.pop("genome_id", None)
     st.experimental_set_query_params(**cur_param)
 
 def reset_submit_query_genome_id():
-    reset_submit()
+    st.session_state['submit_key'] = False
     reset_query_genome_id()
+    #st.session_state['show_all'] = False
 
 
 if "shell" in st.experimental_get_query_params():
@@ -402,7 +400,7 @@ if submit:
             components.html(html, height=0)
         st.button(f"Save results 📥", on_click=download)
 
-        show_all = False
+        show_all = st.session_state.get("show_all", False)
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             approximation_note = '"Approximate RefSeq assignment"'
@@ -432,26 +430,31 @@ if submit:
                 ),
                 unsafe_allow_html=True,
             )
-            if i >= 10 and not show_all:
-                st.markdown("---")
-                show_all = st.checkbox(
-                    f"Show remaining {len(operons) - i - 1} operons", value=False
-                )
-                if not show_all:
-                    break
-
             if detailed:
                 with st.columns([1])[0]:
-                    show_dna = st.checkbox("DNA", key=operon_num)
+                    show_dna = st.checkbox("DNA", key=f"dna-check-{operon_num}")
                 if show_dna:
-                    start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=operon_num)
+                    start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=f"dna-range-{operon_num}")
                     start = gene_locations[start_idx].start-1
                     end = gene_locations[end_idx].end
+                    p1, p2 = st.empty(), st.empty()
+
                     fasta = loads(get_output(
-                        f'https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{df["SequenceAccession"].iloc[start_idx]}?reference_sequences_only=false&start={gene_locations[start_idx].start-1}&end={gene_locations[end_idx].end}'
-                        ))["features"][0]["seq"][:end-start]
-                    components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
-                    st.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=operon_num, data=fasta)
+                        f'''https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{
+                        df["SequenceAccession"].loc[start_idx]
+                        }?reference_sequences_only=false&start={
+                        gene_locations[start_idx].start-1
+                        }&end={
+                        gene_locations[end_idx].end
+                        }'''))["features"][0]["seq"][:end-start]
+                    p1.markdown(f"<textarea readonly rows=10 style='width:100%'>{fasta}</textarea>", unsafe_allow_html=True)
+                    p2.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=f"dna-download-{operon_num}", data=fasta)
+
+            if i >= 10 and not show_all:
+                break
+
+        st.markdown("---")
+        st.checkbox( f"Show all operons", key="show_all")
     else:
         st.error(f"No matching clusters found")
 

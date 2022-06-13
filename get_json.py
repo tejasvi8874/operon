@@ -54,10 +54,12 @@ def get_operons_background_process(genome_id:str):
 
 
 def get_operons(genome_id:str) -> dict[str, float]:
+    logger.info("Enter get operons")
     for _ in range(10):
         try:
             with PidFile('.lock_'+genome_id):
                 listen_pdb(40000)
+                logger.info("Start get operons")
                 predict_json = get_operon_path(genome_id)
                 if predict_json.exists():
                     return loads(predict_json.read_bytes())
@@ -81,10 +83,9 @@ def get_operons(genome_id:str) -> dict[str, float]:
                 if not test_operons_path.exists() or len(list(test_operons_path.glob('*.jpg'))) < len(pegs) - 50:
                     from JsonToCoordinates import to_coordinates
                     logger.info("Enter tocoord")
-                    coords_filename = to_coordinates(compare_region_data, genome_id)
+                    coords_filename = to_coordinates(compare_region_data, genome_id, progress_writer)
                     logger.info("Coordinates created")
 
-                    progress_writer(0.55)
                     makedirs(test_operons_path, exist_ok=True)
                     run(["java", "CoordsToJpg.java", coords_filename, test_operons_path.as_posix()])
                     Path(coords_filename).unlink()

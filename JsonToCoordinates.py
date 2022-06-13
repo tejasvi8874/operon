@@ -1,4 +1,4 @@
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from string import ascii_letters
 from gzip import decompress
 from helpers import get_output, normalize_refseq, string_id_n_refseq_pairs, to_pid, get_prefix_counter, logger, StringRefseq
@@ -42,7 +42,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     logger.info("Parsed STRING scores")
     return string
 
-def to_coordinates(compare_region_data: list, genome_id: str) -> str:
+def to_coordinates(compare_region_data: list, genome_id: str, progress_clb=None) -> str:
     str_json_file = Path(f'.json_files/string/{genome_id}.json')
     if str_json_file.exists():
         with open(str_json_file) as f:
@@ -63,8 +63,10 @@ def to_coordinates(compare_region_data: list, genome_id: str) -> str:
     
 
     with ProcessPoolExecutor(os.cpu_count()*4) as executor:
-            for figdata in compare_region_data:
-                    executor.submit(writer, figdata, out_lock, out_file_name, string)
+        for i, r in enumerate(as_completed([executor.submit(writer, figdata, out_lock, out_file_name, string) for figdata in compare_region_data])):
+            r.result()
+            if progress_clb:
+                progress_clb(0.5 + (i+1)/len(compare_region_data)/10)
 
     return out_file_name
 
