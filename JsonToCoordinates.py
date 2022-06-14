@@ -66,7 +66,7 @@ def to_coordinates(compare_region_data: list, genome_id: str, progress_clb=None,
         for figdata in compare_region_data:
             writer(figdata, out_lock, out_file_name, string)
     else:
-        with ProcessPoolExecutor(os.cpu_count()*4) as executor:
+        with ProcessPoolExecutor() as executor:
             for i, r in enumerate(as_completed([executor.submit(writer, figdata, out_lock, out_file_name, string) for figdata in compare_region_data])):
                 r.result()
                 if progress_clb:
