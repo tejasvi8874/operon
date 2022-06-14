@@ -58,7 +58,6 @@ def get_operons(genome_id:str) -> dict[str, float]:
     for _ in range(10):
         try:
             with PidFile('.lock_'+genome_id):
-                listen_pdb(40000)
                 logger.info("Start get operons")
                 predict_json = get_operon_path(genome_id)
                 if predict_json.exists():

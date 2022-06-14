@@ -351,7 +351,7 @@ if submit:
 
             contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
             if contain_keyword:
-                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"][:2]).lower())
+                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"][:2])[:30].lower())
                 keywords = query_keywords(desc_keyword_txt)
 
             body: list[str] = []

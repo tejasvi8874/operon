@@ -60,7 +60,6 @@ def operon_probs(genome_id: str, peg_count) -> dict[str, float]:
                 get_operons_background_process(genome_id)
                 while not operons_in_progress(genome_id):
                     sleep(0.1)
-            logger.info("Starting loop")
             while not predict_json.exists() and operons_in_progress(genome_id):
                 for _ in range(10):
                     try:

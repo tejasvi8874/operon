@@ -9,3 +9,4 @@ neovim
 fish
 openssh-server
 reptyr
+jq

@@ -1,2 +1,4 @@
-from JsonToCoordinates import parse_string_scores
-parse_string_scores('195102.6')
+from get_json import *
+from JsonToCoordinates import *
+get_operons('1908260.3')
+#parse_string_scores('1908260.3')

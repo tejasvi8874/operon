@@ -63,10 +63,10 @@ def get_output(url)->bytes:
 
 
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id', 'sequence_accession_id'])
-LocInfo = namedtuple('LocInfo', ['start', 'end'])
+LocInfo = namedtuple('LocInfo', ['start', 'end']) # Must consider Accession ID (genes) while sorting genes by location
 
 class PidData(NamedTuple):
-    full_data: tuple[dict[int]]
+    full_data: PatricMeta
     gene_locations: dict[str, LocInfo]
     approximated_refseqs: Optional[list[str]]
     refseq_locus_tag_present: bool
@@ -128,7 +128,7 @@ def to_pid( genome_id: str) -> PidData:
             n_refseq=n_refseq, desc=desc, protein_id=protein_id, sequence_accession_id=feature["sequence_id"]
         )
 
-        gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
+        gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end']) # Must consider Accession ID (genes) while sorting genes by location
 
     return PidData(full_data, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
@@ -226,7 +226,6 @@ def get_genome_id(genome_organism_id) -> Optional[str]:
 
 @lru_cache(1)
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
-    logger.critical("valid_organism")
     return [(name, genome_ids) for pkl in ('count_organisms.pkl', 'count_organisms_archaea.pkl') for name, genome_ids in pickle.loads(Path(pkl).read_bytes())['data'].items() if genome_ids]
 
 
@@ -374,7 +373,7 @@ class StringRefseq:
             for order, (pid, gene) in
             enumerate(sorted(
                     full_data.items(),
-                    key=lambda pid_gene: locations[pid_gene[0]]))}
+                    key=lambda pid_gene: (pid_gene[1].sequence_accession_id, locations[pid_gene[0]].start)))}
         return refseq_order_pid
 
 uniprot_id_pat = re.compile(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_AC$", re.MULTILINE)

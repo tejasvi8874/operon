@@ -25,7 +25,7 @@ random.shuffle(colors)
 
 import re
 
-string_pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)', re.MULTILINE)
+string_pat = re.compile(r'^\d+?\.(.+?) \d+?\.(.+?) (\d+)$', re.MULTILINE)
 def parse_string_scores(genome_id: str)->dict[str,float]:
     string_refseq_obj = StringRefseq(genome_id)
     refseq_order_pid = string_refseq_obj.refseq_order_pid
@@ -42,7 +42,7 @@ def parse_string_scores(genome_id: str)->dict[str,float]:
     logger.info("Parsed STRING scores")
     return string
 
-def to_coordinates(compare_region_data: list, genome_id: str, progress_clb=None) -> str:
+def to_coordinates(compare_region_data: list, genome_id: str, progress_clb=None, sync=False) -> str:
     str_json_file = Path(f'.json_files/string/{genome_id}.json')
     if str_json_file.exists():
         with open(str_json_file) as f:
@@ -62,11 +62,15 @@ def to_coordinates(compare_region_data: list, genome_id: str, progress_clb=None)
     out_lock = multiprocessing.Manager().Lock()
     
 
-    with ProcessPoolExecutor(os.cpu_count()*4) as executor:
-        for i, r in enumerate(as_completed([executor.submit(writer, figdata, out_lock, out_file_name, string) for figdata in compare_region_data])):
-            r.result()
-            if progress_clb:
-                progress_clb(0.5 + (i+1)/len(compare_region_data)/10)
+    if sync:
+        for figdata in compare_region_data:
+            writer(figdata, out_lock, out_file_name, string)
+    else:
+        with ProcessPoolExecutor(os.cpu_count()*4) as executor:
+            for i, r in enumerate(as_completed([executor.submit(writer, figdata, out_lock, out_file_name, string) for figdata in compare_region_data])):
+                r.result()
+                if progress_clb:
+                    progress_clb(0.5 + (i+1)/len(compare_region_data)/10)
 
     return out_file_name
 
@@ -136,6 +140,10 @@ def writer(figdata: str, lock, out_file_name: str, string: dict[str, float]):
                         if is_query == 1:
                                 if pgf not in strands: # just for the query
                                     strands[pgf] = f['strand']
+
+    data['result'][0] = [r for r in data['result'][0] if any(f['fid'] == r['pinned_peg'] and '.peg.' in f['fid'] and PGFvalid(f['attributes']) for f in r['features'])]
+    if not data['result'][0]:
+        return
 
 ###################################################
     r = data['result'][0][0] #only the query genome
@@ -290,6 +298,7 @@ def writer(figdata: str, lock, out_file_name: str, string: dict[str, float]):
 
                             cq_start = int(c_start)
                             cq_end = int(c_end)
+                            total_query = abs(cq_end - cq_start) # c_start is the focus peg start
                     elif after:
                             if query2:
                                     query2 = False
