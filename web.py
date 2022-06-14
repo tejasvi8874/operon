@@ -365,7 +365,8 @@ if submit:
                     )
                     and (
                         not keywords
-                        or keywords.issubset(query_keywords(' '.join(df.loc[iter(cluster), "Description"]).lower()))
+                        or ((desc_keywords := query_keywords(' '.join(df.loc[iter(cluster), "Description"])))
+                            and all(any(k in d_k for d_k in desc_keywords) for k in keywords))
                     )
                 ):
                     continue
