@@ -117,20 +117,23 @@ tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d 
 @st.cache(hash_funcs={TextIOWrapper: lambda _: None})
 def setup():
     def data_commit():
-        while True:
+        try:
+            subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
             try:
-                subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
-                try:
-                    subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
-                except subprocess.CalledProcessError as e:
-                    if e.returncode != 1:
-                        raise
-                subprocess.check_call(["git", "push"], cwd=".json_files")
-                sleep(5*60)
+                subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
             except subprocess.CalledProcessError as e:
-                logger.critical(f"{e.stdout}{e.stderr}")
-                raise
-    Thread(target=data_commit, name="Git sync").start()
+                if e.returncode != 1:
+                    raise
+            subprocess.check_call(["git", "push"], cwd=".json_files")
+            sleep(5*60)
+        except subprocess.CalledProcessError as e:
+            logger.critical(f"{e.stdout}{e.stderr}")
+            raise
+    def commit_daemon():
+        while True:
+            Thread(target=data_commit, name="commit_daemon", daemon=False).start()
+            sleep(5*60)
+    Thread(target=commit_daemon, name="Git sync", daemon=True).start()
 
     logger.info("Loading data")
     try:

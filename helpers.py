@@ -315,7 +315,7 @@ def send_alert(dest_email, genome_id, is_err):
 
     msg = EmailMessage()
     msg['From'] = formataddr(("Operon Finder", source_email))
-    msg['Subject'] = f'Operon prediction task completed for the genome id{genome_id}'
+    msg['Subject'] = f'Operon prediction task completed for the genome id {genome_id}'
     msg['To'] = ', '.join([dest_email,])
 
     msg.set_content(f'Error with operon prediction for {genome_id}.' if is_err else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://www.iitg.ac.in/spkanaujia/operonfinder.html?genome_id={genome_id}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
