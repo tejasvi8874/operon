@@ -49,7 +49,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms, logger, get_pid_uniprot_map
+from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id_name, get_session, valid_organisms, logger, get_pid_uniprot_map
 from pathlib import Path
 import shlex
 import subprocess
@@ -225,7 +225,7 @@ if genome_id_option == search:
                 "It may take long to fetch external data for custom organism during first query."
             )
 
-        genome_id = genome_id or get_genome_id(genome_organism_id)
+        genome_id = genome_id or get_genome_id_name(genome_organism_id)[0]
 
         if not genome_id:
             logger.error(genome_organism_id)
@@ -317,7 +317,6 @@ if submit:
         max_len = max(max((len(c) for c in clusters), default=0), min_len+1) # Streamlit throws error in range slider with equal min and max
 
         cluster_size_range = 1, float("inf")
-        must_pegs: set[int] = set()
         any_pegs: Optional[set[int]] = None
         keywords: set[str] = set()
 
@@ -332,30 +331,32 @@ if submit:
 
             refseq_help = "Comma separated RefSeq IDs"
             refseq_input_label = "Comma separated RefSeq IDs"
-            refseq_prefill = ', '.join(df.loc[iter(clusters[0]), "RefSeq"]).upper()
+            refseq_prefill = 'E.g. '+', '.join(df.loc[iter(clusters[0]), "RefSeq"])
+
+            desc_keyword_txt = st.text_input(
+                "Gene description keywords",
+                placeholder='E.g. '+' '.join(df.loc[iter(clusters[0]), "Description"][:2])[:30].lower(),
+                help="Filter operons by contained gene's function descriptions"
+            )
+            keywords = query_keywords(desc_keyword_txt)
             
-            contain_all = st.checkbox("All of the genes",help=refseq_help)
-            if contain_all:
-                must_pegs_text = st.text_area(
-                    refseq_input_label,
-                    refseq_prefill,
-                    key="all",
-                )
-                must_pegs = {p.lower().strip() for p in must_pegs_text.split(",")}
+            must_pegs_text = st.text_input(
+                "All of the gene RefSeq ids",
+                placeholder=refseq_prefill,
+                key="all",
+                help=refseq_help
+            )
+            must_pegs = {p.lower().strip() for p in must_pegs_text.split(",")}
+            must_pegs.discard('')
 
-            contain_any = st.checkbox("Atleast one of the genes",help=refseq_help)
-            if contain_any:
-                any_pegs_text = st.text_area(
-                    refseq_input_label,
-                    refseq_prefill,
-                    key="any",
-                )
-                any_pegs = {p.lower().strip() for p in any_pegs_text.split(",")}
-
-            contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
-            if contain_keyword:
-                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"][:2])[:30].lower())
-                keywords = query_keywords(desc_keyword_txt)
+            any_pegs_text = st.text_input(
+                "Any of the gene RefSeq ids",
+                placeholder=refseq_prefill,
+                key="all",
+                help=refseq_help
+            )
+            any_pegs = {p.lower().strip() for p in any_pegs_text.split(",")}
+            any_pegs.discard('')
 
             body: list[str] = []
             for i, cluster in enumerate(clusters):

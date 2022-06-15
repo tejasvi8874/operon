@@ -212,17 +212,22 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
-def get_genome_id(genome_organism_id) -> Optional[str]:
-    string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+def get_genome_id_name(genome_organism_id) -> Optional[tuple[str, str]]:
+    string_refseq_gen = chain((k for s, r in string_id_n_refseq_pairs(genome_organism_id) if s.lower()!=r.lower() for k in (s, r)), (k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
     for _  in range(3):
-        # curl https://patricbrc.org/api/genome_feature --data-raw 'and(keyword(%2283332%22),keyword(%22gene%22))'
+        data = f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + k + '%22)' for _, k in zip(range(20), string_refseq_gen)])}))&limit(1)"
+        #print(f"curl https://patricbrc.org/api/genome_feature --data-raw {repr(data)}")
         features = get_session().post(
             'https://patricbrc.org/api/genome_feature',
             headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
+            data=data
             ).json()
         if features:
-            return features[0]["genome_id"]
+            genome = features[0]
+            return genome["genome_id"], genome["genome_name"]
+        else:
+            print(f"curl https://patricbrc.org/api/genome_feature --data-raw {repr(data)}")
+    return None, None
 
 @lru_cache(1)
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
