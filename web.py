@@ -386,7 +386,6 @@ if submit:
 
                 operons.append((i, dfx))
 
-            detailed = st.checkbox(f"Detailed view", value=True, help="Show additional information") 
 
     if operons:
         st.info(f"{len(operons)} operons found")
@@ -409,6 +408,7 @@ if submit:
             st.markdown(f"#### Operon {operon_num+1}")
             approximation_note = '"Approximate RefSeq assignment"'
             render_dfx = deepcopy(dfx)
+
             render_dfx["RefSeq"] = dfx["RefSeq"].apply(
                     lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>"
                             + ("<br><a style='text-decoration: none;' target='_self' href='javascript:alert(" + approximation_note + ")'><span title=" + approximation_note + ">⚠️</span></a>" if r in approximated_refseqs else '')
@@ -418,41 +418,37 @@ if submit:
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
             )
             render_dfx["UniProt"] = dfx["UniProt"].apply(
-                lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{r}</a>'
+                lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{"" if pd.isna(r) else r}</a>'
             )
             del render_dfx["SequenceAccession"]
-            if not detailed:
-                for c in ["Confidence", "Intergenic distance", "UniProt"]:
-                    del render_dfx[c]
             st.write(
                 render_dfx.to_html(
                     justify="center",
                     escape=False,
                     classes=["table-borderless"],
                     border=0,
-                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'} if detailed else None,
+                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'}
                 ),
                 unsafe_allow_html=True,
             )
-            if detailed:
-                with st.columns([1])[0]:
-                    show_dna = st.checkbox("DNA", key=f"dna-check-{operon_num}")
-                if show_dna:
-                    start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=f"dna-range-{operon_num}")
-                    start = gene_locations[start_idx].start-1
-                    end = gene_locations[end_idx].end
-                    p1, p2 = st.empty(), st.empty()
+            with st.columns([1])[0]:
+                show_dna = st.checkbox("DNA", key=f"dna-check-{operon_num}")
+            if show_dna:
+                start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=f"dna-range-{operon_num}")
+                start = gene_locations[start_idx].start-1
+                end = gene_locations[end_idx].end
+                p1, p2 = st.empty(), st.empty()
 
-                    fasta = loads(get_output(
-                        f'''https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{
-                        df["SequenceAccession"].loc[start_idx]
-                        }?reference_sequences_only=false&start={
-                        gene_locations[start_idx].start-1
-                        }&end={
-                        gene_locations[end_idx].end
-                        }'''))["features"][0]["seq"][:end-start]
-                    p1.markdown(f"<textarea readonly rows=10 style='width:100%'>{fasta}</textarea>", unsafe_allow_html=True)
-                    p2.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=f"dna-download-{operon_num}", data=fasta)
+                fasta = loads(get_output(
+                    f'''https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{
+                    df["SequenceAccession"].loc[start_idx]
+                    }?reference_sequences_only=false&start={
+                    gene_locations[start_idx].start-1
+                    }&end={
+                    gene_locations[end_idx].end
+                    }'''))["features"][0]["seq"][:end-start]
+                p1.markdown(f"<textarea readonly rows=10 style='width:100%'>{fasta}</textarea>", unsafe_allow_html=True)
+                p2.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=f"dna-download-{operon_num}", data=fasta)
 
             if i >= 10 and not show_all:
                 break
