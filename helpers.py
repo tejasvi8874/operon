@@ -170,9 +170,9 @@ def stringdb_aliases(genome_organism_id) -> str:
     return aliases
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
-    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
-        string_id, refseq1, refseq2 = match.groups()
-        yield string_id.lstrip('gene:'), normalize_refseq(refseq1 or refseq2) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
+    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)|(\S*)\tRefSeq_locus|(\S*)\tRefSeq_Source)$", stringdb_aliases(genome_organism_id), re.MULTILINE):
+        string_id, *refseqs = match.groups()
+        yield string_id.lstrip('gene:'), normalize_refseq(next(refseq for refseq in refseqs if refseq)) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
 
 normalize_refseq = str.lower
 

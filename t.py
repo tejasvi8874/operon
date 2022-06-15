@@ -1,4 +1,4 @@
 from get_json import *
+from helpers import *
 from JsonToCoordinates import *
-get_operons('1908260.3')
-#parse_string_scores('1908260.3')
+list(string_id_n_refseq_pairs('548'))
