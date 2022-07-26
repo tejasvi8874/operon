@@ -1,2 +1,4 @@
-from JsonToCoordinates import parse_string_scores
-parse_string_scores('195102.6')
+from get_json import *
+from helpers import *
+from JsonToCoordinates import *
+list(string_id_n_refseq_pairs('548'))

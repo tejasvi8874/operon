@@ -63,10 +63,10 @@ def get_output(url)->bytes:
 
 
 PatricMeta = namedtuple('PatricMeta', ['n_refseq', 'desc', 'protein_id', 'sequence_accession_id'])
-LocInfo = namedtuple('LocInfo', ['start', 'end'])
+LocInfo = namedtuple('LocInfo', ['start', 'end']) # Must consider Accession ID (genes) while sorting genes by location
 
 class PidData(NamedTuple):
-    full_data: tuple[dict[int]]
+    full_data: PatricMeta
     gene_locations: dict[str, LocInfo]
     approximated_refseqs: Optional[list[str]]
     refseq_locus_tag_present: bool
@@ -128,7 +128,7 @@ def to_pid( genome_id: str) -> PidData:
             n_refseq=n_refseq, desc=desc, protein_id=protein_id, sequence_accession_id=feature["sequence_id"]
         )
 
-        gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end'])
+        gene_locations[patric_id] = LocInfo(start=feature['start'], end=feature['end']) # Must consider Accession ID (genes) while sorting genes by location
 
     return PidData(full_data, gene_locations, approximated_refseqs, refseq_locus_tag_present)
 
@@ -170,9 +170,9 @@ def stringdb_aliases(genome_organism_id) -> str:
     return aliases
 
 def string_id_n_refseq_pairs(genome_organism_id: str) -> tuple[str,str]:
-    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames))$", stringdb_aliases(genome_organism_id), re.MULTILINE):
-        string_id, refseq1, refseq2 = match.groups()
-        yield string_id.lstrip('gene:'), normalize_refseq(refseq1 or refseq2) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
+    for match in re.finditer(r"^\d+\.(\S*)\t(?:\S*:(\S*)\tBLAST_KEGG_KEGGID|(\S*)\tBLAST_UniProt_GN_(?:OrderedLocusNames|ORFNames)|(\S*)\tRefSeq_locus|(\S*)\tRefSeq_Source)$", stringdb_aliases(genome_organism_id), re.MULTILINE):
+        string_id, *refseqs = match.groups()
+        yield string_id.lstrip('gene:'), normalize_refseq(next(refseq for refseq in refseqs if refseq)) # string_id may be prefixed by "gene:" -> OK for stringdb, might not for patricdb
 
 normalize_refseq = str.lower
 
@@ -212,21 +212,25 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
-def get_genome_id(genome_organism_id) -> Optional[str]:
-    string_refseq_gen = chain(string_id_n_refseq_pairs(genome_organism_id), pairwise(k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
+def get_genome_id_name(genome_organism_id) -> Optional[tuple[str, str]]:
+    string_refseq_gen = chain((k for s, r in string_id_n_refseq_pairs(genome_organism_id) if s.lower()!=r.lower() for k in (s, r)), (k.removeprefix('gene:') for k, _ in groupby(m.groups()[0] for m in re.finditer(r"^\d+\.(\S*)\t.*$", stringdb_aliases(genome_organism_id), re.MULTILINE))))
     for _  in range(3):
-        # curl https://patricbrc.org/api/genome_feature --data-raw 'and(keyword(%2283332%22),keyword(%22gene%22))'
+        data = f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + k + '%22)' for _, k in zip(range(20), string_refseq_gen)])}))&limit(1)"
+        #print(f"curl https://patricbrc.org/api/genome_feature --data-raw {repr(data)}")
         features = get_session().post(
             'https://patricbrc.org/api/genome_feature',
             headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            data=f"and(keyword(%22{genome_organism_id}%22),or({','.join(['keyword(%22' + a_string_id + '%22),keyword(%22' + a_refseq + '%22)' for _, (a_string_id, a_refseq) in zip(range(20), string_refseq_gen)])}))&limit(1)"
+            data=data
             ).json()
         if features:
-            return features[0]["genome_id"]
+            genome = features[0]
+            return genome["genome_id"], genome["genome_name"]
+        else:
+            print(f"curl https://patricbrc.org/api/genome_feature --data-raw {repr(data)}")
+    return None, None
 
 @lru_cache(1)
 def valid_organisms() -> Iterator[tuple[str, Optional[set[str]]]]:
-    logger.critical("valid_organism")
     return [(name, genome_ids) for pkl in ('count_organisms.pkl', 'count_organisms_archaea.pkl') for name, genome_ids in pickle.loads(Path(pkl).read_bytes())['data'].items() if genome_ids]
 
 
@@ -316,7 +320,7 @@ def send_alert(dest_email, genome_id, is_err):
 
     msg = EmailMessage()
     msg['From'] = formataddr(("Operon Finder", source_email))
-    msg['Subject'] = f'Operon prediction task completed for the genome id{genome_id}'
+    msg['Subject'] = f'Operon prediction task completed for the genome id {genome_id}'
     msg['To'] = ', '.join([dest_email,])
 
     msg.set_content(f'Error with operon prediction for {genome_id}.' if is_err else f'The operon predictions for the requested genome id, {genome_id} are now available <a href="https://www.iitg.ac.in/spkanaujia/operonfinder.html?genome_id={genome_id}">here</a>.<br><br>Regards,<br>SCBL - IIT Guwahati', subtype='html')
@@ -374,7 +378,7 @@ class StringRefseq:
             for order, (pid, gene) in
             enumerate(sorted(
                     full_data.items(),
-                    key=lambda pid_gene: locations[pid_gene[0]]))}
+                    key=lambda pid_gene: (pid_gene[1].sequence_accession_id, locations[pid_gene[0]].start)))}
         return refseq_order_pid
 
 uniprot_id_pat = re.compile(r"^\d+\.(\S*)\t(\S*)\tBLAST_UniProt_AC$", re.MULTILINE)

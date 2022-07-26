@@ -49,7 +49,7 @@ import sys
 import shlex
 
 from base64 import b64encode
-from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id, get_session, valid_organisms, logger, get_pid_uniprot_map
+from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs, species_list, get_genome_id_name, get_session, valid_organisms, logger, get_pid_uniprot_map
 from pathlib import Path
 import shlex
 import subprocess
@@ -76,17 +76,15 @@ downloadBase64File(`{b64encode(byte_data).decode()}`, `{file_name}`, `{mime_type
 </script>
 </html>
 """
-def reset_submit():
-    st.session_state['submit_key'] = False
-
 def reset_query_genome_id():
     cur_param = st.experimental_get_query_params()
     cur_param.pop("genome_id", None)
     st.experimental_set_query_params(**cur_param)
 
 def reset_submit_query_genome_id():
-    reset_submit()
+    st.session_state['submit_key'] = False
     reset_query_genome_id()
+    #st.session_state['show_all'] = False
 
 
 if "shell" in st.experimental_get_query_params():
@@ -119,20 +117,23 @@ tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d 
 @st.cache(hash_funcs={TextIOWrapper: lambda _: None})
 def setup():
     def data_commit():
-        while True:
+        try:
+            subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
             try:
-                subprocess.check_call(["git", "add", "-A"], cwd=".json_files")
-                try:
-                    subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
-                except subprocess.CalledProcessError as e:
-                    if e.returncode != 1:
-                        raise
-                subprocess.check_call(["git", "push"], cwd=".json_files")
-                sleep(5*60)
+                subprocess.check_call(["git", "commit", "-am", "Update"], cwd=".json_files")
             except subprocess.CalledProcessError as e:
-                logger.critical(f"{e.stdout}{e.stderr}")
-                raise
-    Thread(target=data_commit, name="Git sync").start()
+                if e.returncode != 1:
+                    raise
+            subprocess.check_call(["git", "push"], cwd=".json_files")
+            sleep(5*60)
+        except subprocess.CalledProcessError as e:
+            logger.critical(f"{e.stdout}{e.stderr}")
+            raise
+    def commit_daemon():
+        while True:
+            Thread(target=data_commit, name="commit_daemon", daemon=False).start()
+            sleep(5*60)
+    Thread(target=commit_daemon, name="Git sync", daemon=True).start()
 
     logger.info("Loading data")
     try:
@@ -231,7 +232,7 @@ if genome_id_option == search:
                 "It may take long to fetch external data for custom organism during first query."
             )
 
-        genome_id = genome_id or get_genome_id(genome_organism_id)
+        genome_id = genome_id or get_genome_id_name(genome_organism_id)[0]
 
         if not genome_id:
             logger.error(genome_organism_id)
@@ -323,7 +324,6 @@ if submit:
         max_len = max(max((len(c) for c in clusters), default=0), min_len+1) # Streamlit throws error in range slider with equal min and max
 
         cluster_size_range = 1, float("inf")
-        must_pegs: set[int] = set()
         any_pegs: Optional[set[int]] = None
         keywords: set[str] = set()
 
@@ -338,30 +338,32 @@ if submit:
 
             refseq_help = "Comma separated RefSeq IDs"
             refseq_input_label = "Comma separated RefSeq IDs"
-            refseq_prefill = ', '.join(df.loc[iter(clusters[0]), "RefSeq"]).upper()
+            refseq_prefill = 'E.g. '+', '.join(df.loc[iter(clusters[0]), "RefSeq"])
+
+            desc_keyword_txt = st.text_input(
+                "Gene description keywords",
+                placeholder='E.g. '+' '.join(df.loc[iter(clusters[0]), "Description"][:2])[:30].lower(),
+                help="Filter operons by contained gene's function descriptions"
+            )
+            keywords = query_keywords(desc_keyword_txt)
             
-            contain_all = st.checkbox("All of the genes",help=refseq_help)
-            if contain_all:
-                must_pegs_text = st.text_area(
-                    refseq_input_label,
-                    refseq_prefill,
-                    key="all",
-                )
-                must_pegs = {p.lower().strip() for p in must_pegs_text.split(",")}
+            must_pegs_text = st.text_input(
+                "All of the gene RefSeq ids",
+                placeholder=refseq_prefill,
+                key="all",
+                help=refseq_help
+            )
+            must_pegs = {p.lower().strip() for p in must_pegs_text.split(",")}
+            must_pegs.discard('')
 
-            contain_any = st.checkbox("Atleast one of the genes",help=refseq_help)
-            if contain_any:
-                any_pegs_text = st.text_area(
-                    refseq_input_label,
-                    refseq_prefill,
-                    key="any",
-                )
-                any_pegs = {p.lower().strip() for p in any_pegs_text.split(",")}
-
-            contain_keyword = st.checkbox("Gene description keywords", value=False, help="Filter operons by contained gene's function descriptions")
-            if contain_keyword:
-                desc_keyword_txt = st.text_input("Enter keywords", ' '.join(df.loc[iter(clusters[0]), "Description"][:2]).lower())
-                keywords = query_keywords(desc_keyword_txt)
+            any_pegs_text = st.text_input(
+                "Any of the gene RefSeq ids",
+                placeholder=refseq_prefill,
+                key="all",
+                help=refseq_help
+            )
+            any_pegs = {p.lower().strip() for p in any_pegs_text.split(",")}
+            any_pegs.discard('')
 
             body: list[str] = []
             for i, cluster in enumerate(clusters):
@@ -374,7 +376,8 @@ if submit:
                     )
                     and (
                         not keywords
-                        or keywords.issubset(query_keywords(' '.join(df.loc[iter(cluster), "Description"]).lower()))
+                        or ((desc_keywords := query_keywords(' '.join(df.loc[iter(cluster), "Description"])))
+                            and all(any(k in d_k for d_k in desc_keywords) for k in keywords))
                     )
                 ):
                     continue
@@ -391,7 +394,6 @@ if submit:
 
                 operons.append((i, dfx))
 
-            detailed = st.checkbox(f"Detailed view", value=True, help="Show additional information") 
 
     if operons:
         st.info(f"{len(operons)} operons found")
@@ -409,11 +411,12 @@ if submit:
             components.html(html, height=0)
         st.button(f"Save results 📥", on_click=download)
 
-        show_all = False
+        show_all = st.session_state.get("show_all", False)
         for i, (operon_num, dfx) in enumerate(operons):
             st.markdown(f"#### Operon {operon_num+1}")
             approximation_note = '"Approximate RefSeq assignment"'
             render_dfx = deepcopy(dfx)
+
             render_dfx["RefSeq"] = dfx["RefSeq"].apply(
                     lambda r: f"""<a target="_blank" href="https://www.ncbi.nlm.nih.gov/refseq/?term={r}">{r.upper() + "</a>"
                             + ("<br><a style='text-decoration: none;' target='_self' href='javascript:alert(" + approximation_note + ")'><span title=" + approximation_note + ">⚠️</span></a>" if r in approximated_refseqs else '')
@@ -423,42 +426,43 @@ if submit:
                 lambda r: f'<a target="_blank" href="https://www.ncbi.nlm.nih.gov/protein/?term={r}">{r}</a>'
             )
             render_dfx["UniProt"] = dfx["UniProt"].apply(
-                lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{r}</a>'
+                lambda r: f'<a target="_blank" href="https://www.uniprot.org/uniprot/{r}">{"" if pd.isna(r) else r}</a>'
             )
             del render_dfx["SequenceAccession"]
-            if not detailed:
-                for c in ["Confidence", "Intergenic distance", "UniProt"]:
-                    del render_dfx[c]
             st.write(
                 render_dfx.to_html(
                     justify="center",
                     escape=False,
                     classes=["table-borderless"],
                     border=0,
-                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'} if detailed else None,
+                    formatters={'Confidence': lambda x: f'<b style="background-color: hsl({120*x}, 100%, 75%)">{x:.2f}</b>'}
                 ),
                 unsafe_allow_html=True,
             )
-            if i >= 10 and not show_all:
-                st.markdown("---")
-                show_all = st.checkbox(
-                    f"Show remaining {len(operons) - i - 1} operons", value=False
-                )
-                if not show_all:
-                    break
+            with st.columns([1])[0]:
+                show_dna = st.checkbox("DNA", key=f"dna-check-{operon_num}")
+            if show_dna:
+                start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=f"dna-range-{operon_num}")
+                start = gene_locations[start_idx].start-1
+                end = gene_locations[end_idx].end
+                p1, p2 = st.empty(), st.empty()
 
-            if detailed:
-                with st.columns([1])[0]:
-                    show_dna = st.checkbox("DNA", key=operon_num)
-                if show_dna:
-                    start_idx, end_idx =  st.select_slider("Select gene range", options = sorted(dfx.index), value=(min(dfx.index), max(dfx.index)), key=operon_num)
-                    start = gene_locations[start_idx].start-1
-                    end = gene_locations[end_idx].end
-                    fasta = loads(get_output(
-                        f'https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{df["SequenceAccession"].iloc[start_idx]}?reference_sequences_only=false&start={gene_locations[start_idx].start-1}&end={gene_locations[end_idx].end}'
-                        ))["features"][0]["seq"][:end-start]
-                    components.html(f"<textarea readonly rows=20 style='width:100%'>{fasta}</textarea>", height=300, scrolling=False)
-                    st.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=operon_num, data=fasta)
+                fasta = loads(get_output(
+                    f'''https://p3.theseed.org/services/data_api/jbrowse/genome/{genome_id}/features/{
+                    df["SequenceAccession"].loc[start_idx]
+                    }?reference_sequences_only=false&start={
+                    gene_locations[start_idx].start-1
+                    }&end={
+                    gene_locations[end_idx].end
+                    }'''))["features"][0]["seq"][:end-start]
+                p1.markdown(f"<textarea readonly rows=10 style='width:100%'>{fasta}</textarea>", unsafe_allow_html=True)
+                p2.download_button(label='Download 📥', file_name=f'{genome_id}-operon-{operon_num+1}-dna.txt', key=f"dna-download-{operon_num}", data=fasta)
+
+            if i >= 10 and not show_all:
+                break
+
+        st.markdown("---")
+        st.checkbox( f"Show all operons", key="show_all")
     else:
         st.error(f"No matching clusters found")
 
