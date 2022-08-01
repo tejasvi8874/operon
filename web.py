@@ -53,7 +53,6 @@ from helpers import query_keywords, to_pid, get_output, string_id_n_refseq_pairs
 from pathlib import Path
 import shlex
 import subprocess
-from collections import defaultdict
 
 def download_bytes_js(byte_data: bytes, file_name, mime_type) -> str:
     file_name = file_name.replace('`', ' ')
@@ -115,8 +114,17 @@ tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d 
 /usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address: #{tmate_ssh}"
 /usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web: #{tmate_web}\""""
 
-universal_hash_funcs = defaultdict(lambda: (lambda _: None))
-@st.cache(hash_funcs=universal_hash_funcs)
+class HashFuncs(dict):
+   def __init__(self,*arg,**kw):
+      super(HashFuncs, self).__init__(*arg, **kw)
+   def contains(self, key):
+       return True
+   def __getitem__(self, key):
+       return (lambda _: None)
+   def __len__(self):
+       return 9999
+
+@st.cache(hash_funcs=HashFuncs())
 def setup():
     def data_commit():
         try:
