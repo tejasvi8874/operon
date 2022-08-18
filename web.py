@@ -95,7 +95,7 @@ if "shell" in st.experimental_get_query_params():
         result = subprocess.run(args, capture_output=True, text=True)
         try:
             result.check_returncode()
-            st.info(result.stdout)
+            st.sidebar.info(result.stdout)
         except subprocess.CalledProcessError as e:
             st.error(result.stderr)
             raise e
