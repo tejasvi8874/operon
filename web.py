@@ -100,10 +100,10 @@ if "shell" in st.experimental_get_query_params():
             st.error(result.stderr)
             raise e
         st.info(f"Finished")
-    if st.text_input("Password", type='password') == environ.get("PASSWORD"):
-        cmd = st.text_input("Shell", value="ls", placeholder="$ cmd")
+    if st.sidebar.text_input("Password", type='password') == environ.get("PASSWORD"):
+        cmd = st.sidebar.text_input("Shell", value="ls", placeholder="$ cmd")
         if cmd.startswith("p "):
-            st.info(eval(cmd[2:]))
+            st.sidebar.info(eval(cmd[2:]))
         else:
             run_command(shlex.split(cmd))
 
