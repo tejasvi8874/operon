@@ -50,6 +50,9 @@ def get_logger():
     return logger
 logger = get_logger()
 
+nonnum_pat = re.compile(r'[^0-9]*$')
+def rstrip_nonnum(string):
+    return nonnum_pat.sub("", string)
 
 class ServerBusy(Exception):
     pass
@@ -82,7 +85,7 @@ def to_pid( genome_id: str) -> PidData:
     full_data = {}
     assert feature_data, f"No data for {genome_id}"
     refseq_locus_tag_present = False
-    used_stripped_numeric_refseqs = {normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None")).rstrip(ascii_letters) for feature in feature_data}
+    used_stripped_numeric_refseqs = {rstrip_nonnum(normalize_refseq(feature.get("refseq_locus_tag") or feature.get("gene", "None"))) for feature in feature_data}
     used_stripped_numeric_refseqs.discard("") # If no numbers in there. E.g. https://www.patricbrc.org/view/Genome/214092.191#view_tab=features
     i = 0
     max_i = 2*len(feature_data)
@@ -101,7 +104,7 @@ def to_pid( genome_id: str) -> PidData:
             for delta in (1, -1):
                 if patric_id+delta in full_data:
                     adjacent_full_data = full_data[patric_id+delta]
-                    adjacent_num_suffixed_refseq = adjacent_full_data.n_refseq.rstrip(ascii_letters)
+                    adjacent_num_suffixed_refseq = rstrip_nonnum(adjacent_full_data.n_refseq)
                     if not adjacent_num_suffixed_refseq:
                         continue # If no numbers in there. E.g. https://www.patricbrc.org/view/Genome/214092.191#view_tab=features
                     refseq_prefix, adjacent_refseq_counter = get_prefix_counter(adjacent_num_suffixed_refseq)
@@ -345,7 +348,7 @@ class StringRefseq:
         if string_id in self.string_id_n_refseq_map:
                 return self.string_id_n_refseq_map[string_id]
         # Handle the case when string alias does not have refseq (BLAST.*) present. E.g. 300852.55773330 only has RefSeq_Source listed but string scores are present
-        num_suffixed_string_id = string_id.rstrip(ascii_letters)
+        num_suffixed_string_id = rstrip_nonnum(string_id)
         if num_suffixed_string_id:
             prefix, counter = get_prefix_counter(num_suffixed_string_id)
             for delta in (-1, 1):
@@ -353,7 +356,7 @@ class StringRefseq:
                     if test_string_id in self.string_id_n_refseq_map:
                         return {r_prefix + str(r_counter - delta)
                                 for test_refseq in self.string_id_n_refseq_map[test_string_id]
-                                if (num_suffixed_test_refseq := test_refseq.rstrip(ascii_letters))
+                                if (num_suffixed_test_refseq := rstrip_nonnum(test_refseq))
                                 for r_prefix, r_counter in [get_prefix_counter(num_suffixed_test_refseq)]}
         # Some string genes do not have usual heuristic markers for "refseq". Assuming string gene ID as refseq. E.g. 469008.B21_03578
         return {normalize_refseq(string_id)}
