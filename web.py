@@ -184,6 +184,7 @@ st.markdown('''
     <img alt="operon-logo" src="https://gistcdn.githack.com/tejasvi8874/79d777264bf5d66f80ca3fd02f509b8d/raw/a5b80c86ba31b40c64f2c5409dda105992ce43bc/operon-logo.svg">
     <img alt="iitg-logo" src="https://upload.wikimedia.org/wikipedia/en/1/12/IIT_Guwahati_Logo.svg">
     <center><h4>Prokaryotic Operon Prediction Web Server</h4></center>
+    <center><p style="background-color:Tomato;">welcome</p><center>
     <br>
     ''', unsafe_allow_html=True)
 
