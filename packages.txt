@@ -1,4 +1,4 @@
-default-jre
+openjdk-17-jre
 tmate
 atool
 p7zip-full
