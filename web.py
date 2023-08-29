@@ -136,7 +136,7 @@ def setup():
                     raise
             subprocess.check_call(["git", "push"], cwd=".json_files")
             sleep(5*60)
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.critical(f"{e.stdout}{e.stderr}")
             raise
     def commit_daemon():
