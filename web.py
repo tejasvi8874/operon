@@ -136,9 +136,13 @@ def setup():
                     raise
             subprocess.check_call(["git", "push"], cwd=".json_files")
             sleep(5*60)
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        except subprocess.CalledProcessError as e:
             logger.critical(f"{e.stdout}{e.stderr}")
             raise
+        except FileNotFoundError as e:
+            logger.critical(e)
+            logger.critical("Ignoring for now")
+            pass
     def commit_daemon():
         while True:
             Thread(target=data_commit, name="commit_daemon", daemon=False).start()
@@ -479,7 +483,7 @@ Tejasvi Singh Tomar, Pratik Dasgupta, and Shankar Prasad Kanaujia<br>
 <a href="https://www.iitg.ac.in/biotech/">Department of Biosciences and Bioengineering</a><br>
 <a href="https://www.iitg.ac.in/">Indian Institute of Technology Guwahati</a><br>
 Guwahati - 781 039, Assam, India<br>
-Copyright Ⓒ 2022 Operon Finder <br>
+Copyright Ⓒ 2023 Operon Finder <br>
 </b>
 <a href="https://clustrmaps.com/site/1bowi" title="visitor map"><img src="//www.clustrmaps.com/map_v2.png?d=1laoCLUJldQlosO5bh73b689snhMb-hqnJynyQ_Ez5s&cl=ffffff"></a></br>
 Genome count: 9140<br>
