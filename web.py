@@ -149,6 +149,7 @@ def setup():
             sleep(5*60)
     Thread(target=commit_daemon, name="Git sync", daemon=True).start()
 
+    logger.critical("Loading data (critical)")
     logger.info("Loading data")
     try:
         Path('~/.tmate.conf').expanduser().write_text("""set -s escape-time 0
