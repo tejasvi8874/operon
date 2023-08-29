@@ -109,7 +109,7 @@ if "shell" in st.experimental_get_query_params():
 
 
 
-tmate_cmd = """bash -ic 'nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d & disown -a' >/dev/null 2>&1
+tmate_cmd = """bash -ic 'set -m; nohup /usr/bin/tmate -S /tmp/tmate.sock new-session -d & disown -a' >/dev/null 2>&1
 /usr/bin/tmate -S /tmp/tmate.sock wait tmate-ready
 /usr/bin/tmate -S /tmp/tmate.sock display -p "tmate SSH address: #{tmate_ssh}"
 /usr/bin/tmate -S /tmp/tmate.sock display -p "tmate web: #{tmate_web}\""""
