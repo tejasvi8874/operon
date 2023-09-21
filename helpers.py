@@ -191,7 +191,7 @@ def get_prefix_counter(string):
                     dot_seen = True
                 else:
                     break
-        while digits and digits[-1] == '0':
+        while len(digits) > 1 and digits[-1] == '0':
             digits.pop()
         if not digits:
             raise Exception(f"Can't get prefix of {string}")
